@@ -3,3 +3,7 @@
 pyspark --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 --conf spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog --conf spark.sql.catalog.spark_catalog.type=hadoop --conf spark.sql.catalog.spark_catalog.warehouse=gs://alpaca-streamer/warehouse_poc
 
 spark-sql --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 --conf spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog --conf spark.sql.catalog.spark_catalog.type=hadoop --conf spark.sql.catalog.spark_catalog.warehouse=gs://alpaca-streamer/warehouse_poc
+
+---gcloud commands
+--submit spark streaming job
+gcloud dataproc jobs submit pyspark spark_kafka_to_iceberg.py --cluster alpaca-streamer --jars gs://alpaca-streamer/test_runs/jars/spark-sql-kafka-0-10_2.12-3.5.5.jar,gs://alpaca-streamer/test_runs/jars/spark-sql-kafka-0-10_2.12-3.5.5.jar -- --bootstrap_servers instance-20250325-162745:9095 --topic iex_raw1 --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream
