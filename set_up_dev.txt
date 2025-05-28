@@ -1,0 +1,4 @@
+##install git
+apt-get install git
+
+##install uv
