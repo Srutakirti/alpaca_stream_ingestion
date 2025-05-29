@@ -1,0 +1,22 @@
+    instance-20250325-162745
+
+curl -O https://dlcdn.apache.org/kafka/4.0.0/kafka_2.13-4.0.0.tgz
+tar -xzf kafka_2.13-4.0.0.tgz
+cd kafka_2.13-4.0.0
+sudo apt update
+sudo apt install openjdk-17-jdk
+KAFKA_CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"
+bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c config/server.properties
+bin/kafka-server-start.sh config/server.properties &> /dev/null &
+
+
+bin/kafka-topics.sh --create --topic iex_raw --partitions 3 --bootstrap-server localhost:9092
+bin/kafka-topics.sh --describe --topic iex_raw --bootstrap-server localhost:9092
+bin/kafka-console-consumer.sh --topic iex_raw --from-beginning --bootstrap-server localhost:9092
+bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic iex_raw
+
+
+
+bin/kafka-topics.sh --create --topic test1 --bootstrap-server localhost:9092 --partitions 3 
+
+curl -LsSfk https://astral.sh/uv/install.sh | sh
