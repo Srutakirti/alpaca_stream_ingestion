@@ -18,7 +18,7 @@ def main(bootstrap_servers, topic, table_path, processing_time):
 
     (kafka_raw_df.writeStream
         .format("iceberg")
-        .option("checkpointLocation", f"gs://alpaca-streamer/checkpoints/{topic}")
+        .option("checkpointLocation", f"gs://alpaca-streamer/checkpoints/a/{topic}")
         .outputMode("append")
         .trigger(processingTime=processing_time)
         .option("path", f"{table_path}")  # Use Iceberg table identifier

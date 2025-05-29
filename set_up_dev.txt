@@ -1,4 +1,21 @@
+10.18.224.32
+network - coe-landing-zone-vpc
+subnetwork - coe-landing-zone-subnet-1 (check the ip range line 1 )
+
+Steps
+
 ##install git
 apt-get install git
 
 ##install uv
+curl -LsSfk https://astral.sh/uv/install.sh | sh
+
+##run extract (make sure to refer to extract/kafka_commands.txt for upping the kafka server)
+uv run extract/kafka_custom_producer.py  --broker instance-20250325-162745:9095 --topic iex_raw
+#without terminal background run
+nohup uv run python extract/kafka_custom_producer.py --broker instance-20250325-162745:9095 --topic iex_raw > output.log 2>&1 &
+
+##run the dataproc streaming job (make sure to refer to iceberg folder for the iceberg/alpaca_raw_trade.sql, which is needed to create the table)
+
+## running the streaming job
+gcloud dataproc jobs submit pyspark transform/spark_kafka_to_iceberg.py --cluster alpaca-streamer --async --region us-east1 --properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 -- --bootstrap_servers instance-20250325-162745:9095 --topic iex_raw --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream --processing_time "60 seconds"
