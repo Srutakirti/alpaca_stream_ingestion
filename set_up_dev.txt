@@ -14,7 +14,7 @@ curl -LsSfk https://astral.sh/uv/install.sh | sh
 uv run extract/kafka_custom_producer.py  --broker instance-20250325-162745:9095 --topic iex_raw
 #without terminal background run
 nohup uv run python extract/kafka_custom_producer.py --broker instance-20250325-162745:9095 --topic iex_raw > output.log 2>&1 &
-
+source init.sh && nohup uv run python extract/kafka_alpaca_producer_ws.py
 ##run the dataproc streaming job (make sure to refer to iceberg folder for the iceberg/alpaca_raw_trade.sql, which is needed to create the table)
 
 ## running the streaming job

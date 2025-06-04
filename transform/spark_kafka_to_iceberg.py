@@ -1,5 +1,6 @@
 import argparse
 from pyspark.sql import SparkSession
+#gcloud dataproc jobs submit pyspark transform/spark_kafka_to_iceberg.py --cluster alpaca-streamer --async --region us-east1 --properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 -- --bootstrap_servers instance-20250325-162745:9095 --topic iex_raw_0 --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream --processing_time "60 seconds"
 
 def main(bootstrap_servers, topic, table_path, processing_time):
     spark = SparkSession.builder \
@@ -14,6 +15,7 @@ def main(bootstrap_servers, topic, table_path, processing_time):
         .option("kafka.bootstrap.servers", bootstrap_servers) \
         .option("subscribe", topic) \
         .option("startingOffsets", "earliest") \
+        .option("kafka.group.id", topic) \
         .load()
 
     (kafka_raw_df.writeStream
