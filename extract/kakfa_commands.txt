@@ -12,8 +12,8 @@ bin/kafka-server-start.sh -daemon config/server.properties
 
 
 
-bin/kafka-topics.sh --create --topic iex_raw --partitions 3 --bootstrap-server localhost:9092
-bin/kafka-topics.sh --describe --topic iex_raw --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic iex_raw_0 --partitions 3 --bootstrap-server localhost:9092
+bin/kafka-topics.sh --describe --topic iex_raw_0 --bootstrap-server localhost:9092
 bin/kafka-console-consumer.sh --topic iex_raw --from-beginning --bootstrap-server localhost:9092
 bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic iex_raw
 

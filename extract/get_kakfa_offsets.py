@@ -15,16 +15,17 @@ def get_latest_offsets(broker, topic):
         if topic not in metadata.topics:
             raise Exception(f"Topic '{topic}' not found.")
 
+        print(metadata.topics)
         partitions = metadata.topics[topic].partitions.keys()
         topic_partitions = [TopicPartition(topic, p) for p in partitions]
 
         # Get latest offsets
-        end_offsets = consumer.get_watermark_offsets
         latest_offsets = {}
 
         for tp in topic_partitions:
             low, high = consumer.get_watermark_offsets(tp, timeout=5)
-            latest_offsets[tp.partition] = high
+            print(low,high)
+            latest_offsets[str(tp.partition)] = high
 
         return latest_offsets
 
@@ -38,6 +39,4 @@ if __name__ == "__main__":
     topic = "iex_raw_0"          # Change to your topic
 
     offsets = get_latest_offsets(broker, topic)
-    print(f"Latest offsets for topic '{topic}':")
-    for partition, offset in offsets.items():
-        print(f"Partition {partition}: Offset {offset}")
+    print(offsets)
