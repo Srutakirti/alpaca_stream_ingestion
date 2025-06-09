@@ -36,6 +36,8 @@ logging.basicConfig(
 
 def handle_shutdown(*_):
     logging.info("Shutdown signal received.")
+    cloud_handler.flush()
+    cloud_handler.close()
     shutdown_event.set()
 
 signal.signal(signal.SIGINT, handle_shutdown)
@@ -66,6 +68,8 @@ async def consume_websocket_and_send_to_kafka(producer):
                         logging.info("Message sent to Kafka")
                     except asyncio.TimeoutError:
                         logging.warning("Timeout: No message from WebSocket for 60s. Reconnecting.")
+                        cloud_handler.flush()
+                        cloud_handler.close()
                         break
         except Exception as e:
             logging.error(f"Error: {e}. Retrying in {backoff}s...")
@@ -73,6 +77,8 @@ async def consume_websocket_and_send_to_kafka(producer):
             backoff = min(backoff * 2, 60)
 
     logging.info("Exiting message loop.")
+    cloud_handler.flush()
+    cloud_handler.close()
 
 async def main():
     producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS)
@@ -82,6 +88,8 @@ async def main():
     finally:
         await producer.stop()
         logging.info("Kafka producer stopped cleanly.")
+        cloud_handler.flush()
+        cloud_handler.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
