@@ -91,7 +91,7 @@ while True:
     
     for partition in latest_kafka_offsets.keys():
         lag = latest_kafka_offsets[partition] - latest_gcs_offsets[partition]
-        lag_dict[f"partition_{partition}"] =  lag if  lag > 0 else -1
+        lag_dict[f"partition_{partition}"] =  lag 
     lag_dict["source"] = "live_alpaca"
     print(json.dumps(lag_dict))
     logger.info(json.dumps(lag_dict))
