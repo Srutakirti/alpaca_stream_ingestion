@@ -1,4 +1,4 @@
--- spark-sql --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 --conf spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog --conf spark.sql.catalog.spark_catalog.type=hadoop --conf spark.sql.catalog.spark_catalog.warehouse=gs://alpaca-streamer/warehouse_poc
+-- spark-sql --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 --conf spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog --conf spark.sql.catalog.spark_catalog.type=hadoop --conf spark.sql.catalog.spark_catalog.warehouse=gs://alpaca-streamer/warehouse_poc --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 
 CREATE TABLE spark_catalog.test2.raw_stream (
   key BINARY,
