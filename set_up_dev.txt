@@ -33,7 +33,7 @@ gcloud dataproc batches submit pyspark transform/spark_kafka_to_iceberg.py \
   --bootstrap_servers instance-20250325-162745:9095 \
   --topic iex_raw_0 \
   --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream \
-  --processing_time "60 seconds
+  --processing_time "60 seconds"
 
 -- run maintanenace
 gcloud dataproc batches submit pyspark iceberg/iceberg_maintenance.py \

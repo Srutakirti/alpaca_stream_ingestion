@@ -57,7 +57,7 @@ def get_latest_offsets_kafka(broker, topic):
         'group.id': 'offset-checker',
         'enable.auto.commit': False
     })
-
+    print("consumer inititated")
     try:
         # Get metadata to find all partitions of the topic
         metadata = consumer.list_topics(topic, timeout=10)
@@ -67,7 +67,7 @@ def get_latest_offsets_kafka(broker, topic):
         partitions = metadata.topics[topic].partitions.keys()
         topic_partitions = [TopicPartition(topic, p) for p in partitions]
 
-
+        print(topic_partitions)
         # Get latest offsets
         latest_offsets = {}
 

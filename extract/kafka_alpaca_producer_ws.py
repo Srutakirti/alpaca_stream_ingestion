@@ -19,7 +19,7 @@ key = os.getenv("ALPACA_KEY")
 secret = os.getenv("ALPACA_SECRET")
 uri = "wss://stream.data.alpaca.markets/v2/iex"
 symbol_list = ["*"]
-websocket_timeout = 120
+timeout = 120  # seconds
 
 # Graceful shutdown flag
 shutdown_event = asyncio.Event()
@@ -47,7 +47,7 @@ signal.signal(signal.SIGTERM, handle_shutdown)
 async def consume_websocket_and_send_to_kafka(producer):
     backoff = 1
     retry_count = 0
-    while not shutdown_event.is_set() and retry_count <= 20:
+    while not shutdown_event.is_set() and retry_count < 10:
         try:
             async with websockets.connect(uri) as websocket:
                 logging.info("Connected to Alpaca WebSocket")
@@ -65,23 +65,30 @@ async def consume_websocket_and_send_to_kafka(producer):
 
                 while not shutdown_event.is_set():
                     try:
-                        message = await asyncio.wait_for(websocket.recv(), timeout=websocket_timeout)
-                        await producer.send_and_wait(KAFKA_TOPIC, json.dumps(json.loads(message)).encode("utf-8"))
+                        message = await asyncio.wait_for(websocket.recv(), timeout)
+                        await producer.send(KAFKA_TOPIC, json.dumps(json.loads(message)).encode("utf-8"))
                         logging.info("Message sent to Kafka")
                     except asyncio.TimeoutError:
-                        logging.warning("Timeout: No message from WebSocket for 60s. Reconnecting.")
-                        cloud_handler.flush()
-                        cloud_handler.close()
-                        break
+                        retry_count += 1
+                        logging.warning(f"Timeout: No message from WebSocket for 120s. Retrying in {backoff}s... with retry count - {retry_count}.")
+                        await asyncio.sleep(backoff)
+                        backoff = min(backoff * 2, timeout)
+                        if retry_count >= 20:
+                            logging.error("Max retries reached. Exiting.")
+                            break
         except Exception as e:
             retry_count += 1
-            logging.error(f"Error: {e}. Retrying for retry count - {retry_count} in {backoff}s...")
+            if retry_count >= 20:
+                logging.error("Max retries reached. Exiting.")
+                break
+            logging.warning(f"Connection error: {e}. Retrying in {backoff}s... with retry count - {retry_count}.")
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, websocket_timeout)
+            backoff = min(backoff * 2, timeout)
+        finally:
+                cloud_handler.flush()
+                cloud_handler.close()
+    logging.info("Exiting message loop.")
 
-    logging.info(f"Exiting message loop. retry count - {retry_count}")
-    cloud_handler.flush()
-    cloud_handler.close()
 
 async def main():
     producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS)

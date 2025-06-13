@@ -20,20 +20,20 @@ def run_commands():
     time.sleep(2)
 
     # Command 3: Spark batch submission (no nohup needed)
-    cmd3 = '''gcloud dataproc batches submit pyspark transform/spark_kafka_to_iceberg.py \
---region=us-east1 \
---deps-bucket=gs://alpaca-streamer \
---service-account=610376955765-compute@developer.gserviceaccount.com \
---subnet=coe-composer-subnet \
---version=2.2 \
---async \
---properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.1,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.8.1 \
--- \
---bootstrap_servers instance-20250325-162745:9095 \
---topic iex_raw_0 \
---table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream \
---processing_time "60 seconds"'''
-    subprocess.Popen(cmd3, shell=True)
+#     cmd3 = '''gcloud dataproc batches submit pyspark transform/spark_kafka_to_iceberg.py \
+# --region=us-east1 \
+# --deps-bucket=gs://alpaca-streamer \
+# --service-account=610376955765-compute@developer.gserviceaccount.com \
+# --subnet=coe-composer-subnet \
+# --version=2.2 \
+# --async \
+# --properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.1,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.8.1 \
+# -- \
+# --bootstrap_servers instance-20250325-162745:9095 \
+# --topic iex_raw_0 \
+# --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream \
+# --processing_time "60 seconds"'''
+#     subprocess.Popen(cmd3, shell=True)
 
 if __name__ == "__main__":
     run_commands()
