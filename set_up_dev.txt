@@ -14,7 +14,8 @@ curl -LsSfk https://astral.sh/uv/install.sh | sh
 uv run extract/kafka_custom_producer.py  --broker instance-20250325-162745:9095 --topic iex_raw
 #without terminal background run
 nohup uv run python extract/kafka_custom_producer.py --broker instance-20250325-162745:9095 --topic iex_raw > output.log 2>&1 &
-source init.sh && nohup uv run python extract/kafka_alpaca_producer_ws.py > output.log 2>&1 &
+source init.sh && nohup uv run python extract/kafka_alpaca_producer_ws.py > /tmp/output.log 2>&1 &
+source init.sh && nohup uv run python extract/alpaca_ws_updated.py > /tmp/output.log 2>&1 &
 ##run the dataproc streaming job (make sure to refer to iceberg folder for the iceberg/alpaca_raw_trade.sql, which is needed to create the table)
 
 ## running the streaming job
@@ -46,6 +47,25 @@ gcloud dataproc batches submit pyspark iceberg/iceberg_maintenance.py \
   --properties=spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.8.1
 
   nohup uv run extract/compare_spark_kafka_offsets.py > /tmp/output.log 2>&1 &
+
+--- BQ write instead of iceberg
+gcloud dataproc batches submit pyspark transform/spark_kafka_to_iceberg.py \
+  --region=us-east1 \
+  --deps-bucket=gs://alpaca-streamer \
+  --service-account=610376955765-compute@developer.gserviceaccount.com \
+  --subnet=coe-composer-subnet \
+  --version=2.2 \
+  --async \
+  --properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.1,org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.8.1 \
+  -- \
+  --bootstrap_servers instance-20250325-162745:9095 \
+  --topic iex_raw_0 \
+  --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream \
+  --processing_time "60 seconds" \
+  --checkpoint_gcs_location gs://alpaca-streamer/checkpoints/a/iex_raw_0_bq \
+  --bq_table coe-landing-zone-18-ats-2246.alpaca_data.raw_alpaca_spark_stream
+
+gs://alpaca-streamer/checkpoints/a/iex_raw_0_bq
 
 next steps
   --run compaction,change timeout in producer script
