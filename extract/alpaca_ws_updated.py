@@ -127,7 +127,7 @@ async def consume_websocket_and_send_to_kafka(
                 logging.info(f"Subscribe Response: {subscribe_response}")
 
                 logging.info("Starting message processing loop...")
-                backoff = 1  # Reset backoff after successful connection
+                backoff = 5  # Reset backoff after successful connection
 
                 while not shutdown_event.is_set():
                     try:
