@@ -1,0 +1,41 @@
+kafka:
+  bootstrap_servers: "instance-20250325-162745:9095"
+  topics:
+    raw_trade: "iex_raw_0"
+  consumer:
+    group_id: "offset-checker"
+    enable_auto_commit: false
+
+alpaca:
+  key: ""  # Set via environment variable ALPACA_KEY
+  secret: ""  # Set via environment variable ALPACA_SECRET
+  websocket_uri: "wss://stream.data.alpaca.markets/v2/iex"
+  symbols: ["*"]
+  timeout: 120
+  max_retries: 5
+  backoff_max: 120
+
+spark:
+  warehouse_path: "gs://alpaca-streamer/warehouse_poc"
+  jars:
+    - "org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.1"
+    - "org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.8.1"
+  processing_time: "60 seconds"
+  iceberg:
+    catalog: "spark_catalog"
+    catalog_type: "hadoop"
+
+gcp:
+  project_id: "coe-landing-zone-18-ats-2246"
+  region: "us-east1"
+  cluster_name: "alpaca-streamer"
+  storage:
+    bucket: "alpaca-streamer"
+    checkpoints_prefix: "checkpoints/a"
+    warehouse_prefix: "warehouse_poc"
+  bigquery:
+    table: "coe-landing-zone-18-ats-2246.alpaca_data.raw_alpaca_spark_stream"
+
+logging:
+  level: "INFO"
+  name: "websocket-kafka-logger"
