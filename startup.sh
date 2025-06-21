@@ -3,8 +3,9 @@
 # Set PROJECT_DIR to the absolute path of your project
 PROJECT_DIR="/home/srutakirti_mangaraj_fractal_ai/alpaca_stream_ingestion"
 UV_PATH="/home/srutakirti_mangaraj_fractal_ai/.local/bin/uv"
-WEBSCOKET_SCRIPT="alpaca_ws_updated.py"
+WEBSCOKET_SCRIPT="alpaca_ws_updated_conf.py"
 COMPARATOR_SCRIPT="compare_spark_kafka_offsets.py"
+
 
 # Create log directory if it doesn't exist
 LOG_DIR="/tmp/alpaca_logs"
@@ -15,6 +16,8 @@ DATE=$(date +%Y%m%d)
 
 # Change to project directory
 cd $PROJECT_DIR || exit 1
+
+export PYTHONPATH=$PROJECT_DIR
 
 # Source environment variables and any other initialization
 source init.sh || {
@@ -42,5 +45,5 @@ fi
 # Start Kafka producer script if not already running
 if ! check_process "${WEBSCOKET_SCRIPT}"; then
     nohup ${UV_PATH} run python extract/${WEBSCOKET_SCRIPT}  > "${LOG_DIR}/kafka_producer_${DATE}.log" 2>&1 &
-    echo "$(date): staring script ${WEBSCOKET_SCRIPT}" | tee -a "${LOG_DIR}/startup_${DATE}.log"
+    echo "$(date): starting script ${WEBSCOKET_SCRIPT}" | tee -a "${LOG_DIR}/startup_${DATE}.log"
 fi

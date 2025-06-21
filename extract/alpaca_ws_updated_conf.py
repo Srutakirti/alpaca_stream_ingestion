@@ -97,11 +97,12 @@ async def consume_websocket_and_send_to_kafka(
                         Metrics.messages_sent += 1
                         Metrics.last_message_time = datetime.now()
                         
-                        if Metrics.messages_sent % 100 == 0:
-                            logging.info(f"Metrics: {Metrics.get_metrics()}")
+                        
+                        logging.info(f"Metrics: {Metrics.get_metrics()}")
                             
                     except asyncio.TimeoutError:
-                        logging.warning(f"Timeout: No message received for {config.get('alpaca.timeout')}s")
+                        logging.warning(f"Timeout: No message received for {config.get('alpaca.timeout')}s retry_count - {retry_count}")
+                        retry_count += 1
                         break
                         
         except Exception as e:

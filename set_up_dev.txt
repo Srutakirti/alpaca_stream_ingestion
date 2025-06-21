@@ -74,3 +74,13 @@ next steps
 
 low priority
 -- check the webscok producer last_message_time is alpaca_ws_updated
+-- run using confgcloud dataproc batches submit pyspark kafka_to_bq.py \
+    --region=us-east1 \
+    --subnet=default \
+    --deps-bucket=gs://your-bucket-name-here \
+    --jars=gs://spark-lib/bigquery/spark-3.3-bigquery-0.37.0.jar \
+    --py-files=conf_reader.py \
+    -- --processing_time="4 seconds" \
+       --bq_table="your_project.your_dataset.your_table" \
+       --batch_mode
+

@@ -24,6 +24,9 @@ spark:
   iceberg:
     catalog: "spark_catalog"
     catalog_type: "hadoop"
+  app_name: KafkaToIcebergAndBQStreamer
+  spark_catalog: org.apache.iceberg.spark.SparkCatalog
+  spark_catalog_type: hadoop
 
 gcp:
   project_id: "coe-landing-zone-18-ats-2246"

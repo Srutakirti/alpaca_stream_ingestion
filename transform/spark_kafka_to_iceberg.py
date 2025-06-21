@@ -1,21 +1,22 @@
 import argparse
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
+from conf_reader import Config
 
 #gcloud dataproc jobs submit pyspark transform/spark_kafka_to_iceberg.py --cluster alpaca-streamer --async --region us-east1 --properties=^%^spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.1 -- --bootstrap_servers instance-20250325-162745:9095 --topic iex_raw_0 --table_path gs://alpaca-streamer/warehouse_poc/test2/raw_stream --processing_time "60 seconds"
 
-def main(bootstrap_servers, topic, table_path, processing_time,checkpoint_gcs_location,bq_table):
+def main(bootstrap_servers, topic, table_path, processing_time,checkpoint_gcs_location,bq_table,conf):
     spark = SparkSession.builder \
         .appName("KafkaToIcebergStreamer") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog") \
-        .config("spark.sql.catalog.spark_catalog.type", "hadoop") \
-        .config("spark.sql.catalog.spark_catalog.warehouse", "gs://alpaca-streamer/warehouse_poc") \
+        .config("spark.sql.catalog.spark_catalog", conf.spark.spark_catalog) \
+        .config("spark.sql.catalog.spark_catalog.type", conf.spark.spark_catalog_type) \
+        .config("spark.sql.catalog.spark_catalog.warehouse", f"gs://{conf.gcp.storage.bucket}/{conf.gcp.storage.warehouse_prefix}") \
         .getOrCreate()
 
     kafka_raw_df = spark.readStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", bootstrap_servers) \
-        .option("subscribe", topic) \
+        .option("kafka.bootstrap.servers", conf.kakfka.bootstrap_servers) \
+        .option("subscribe", conf.kafka.topics) \
         .option("startingOffsets", "earliest") \
         .load()
 
@@ -65,6 +66,7 @@ if __name__ == "__main__":
     print(f"processing_time - {args.processing_time}")
     print(f"checkpoint_gcs_location - {args.checkpoint_gcs_location}")
     print(f"bq_table - {args.bq_table}")
+    config = Config('config/config.yaml')
 
     main(
         bootstrap_servers=args.bootstrap_servers,
@@ -72,6 +74,7 @@ if __name__ == "__main__":
         table_path=args.table_path,
         processing_time=args.processing_time,
         checkpoint_gcs_location=args.checkpoint_gcs_location,
-        bq_table=args.bq_table
+        bq_table=args.bq_table,
+        conf=config
     )
 
