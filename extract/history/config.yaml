@@ -1,0 +1,9 @@
+iceberg:
+  warehouse_path: "s3a://your-bucket/warehouse"  # Change this to your warehouse path
+  database: "market_data"
+  table: "stock_bars"
+
+# export ALPACA_API_KEY="your_api_key"
+# export ALPACA_API_SECRET="your_api_secret"
+
+# pip install requests pandas pyspark PyYAML
