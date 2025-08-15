@@ -1,7 +1,9 @@
 kafka:
-  bootstrap_servers: "instance-20250325-162745:9095"
+  # bootstrap_servers: "instance-20250325-162745:9095"
+  # bootstrap_servers: "localhost:9092"
+  bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
   topics:
-    raw_trade: "iex_raw_0"
+    raw_trade: "iex-topic-1"
   consumer:
     group_id: "offset-checker"
     enable_auto_commit: false
@@ -42,3 +44,4 @@ gcp:
 logging:
   level: "INFO"
   name: "websocket-kafka-logger"
+  mode: "stdout"

@@ -1,0 +1,25 @@
+Spark
+Using uv to setup the pyspark python env
+have to run it from within spark installation directory
+in this dir have spark images that can be used but has to run from 
+spark installation dir only
+
+#BELOW COMMANDS WERE USED TO BUILD SPARK IMAGES FOR KUBERNETES
+##THESE COMMANDS ARE RUN FROM SPARK ISNTALLATION DIR
+docker build -t spark:v3.5.2.2  -f kubernetes/dockerfiles/spark/Dockerfile .
+docker build   --build-arg base_img=spark:v3.5.2.2   -t pyspark:v3.5.2.3 -f kubernetes/dockerfiles/spark/bindings/python/Dockerfile_pyspark  .
+spark-submit \
+  --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
+  --master k8s://$(minikube ip):8443 \
+  --deploy-mode cluster \
+  --name pf-demo17 \
+  --conf spark.kubernetes.container.image=pyspark:v3.5.2.5 \
+  --conf spark.kubernetes.context=minikube \
+  --conf spark.kubernetes.driver.pod.name=pf-demo17 \
+  --conf spark.kubernetes.namespace=spark \
+  --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
+  --conf spark.ui.enabled=false \
+  --conf spark.eventLog.enabled=true \
+  --conf spark.jars.ivy=/tmp/.ivy2 \
+  --conf spark.eventLog.dir=/tmp \
+  local:///opt/python/spark_kafka_test.py

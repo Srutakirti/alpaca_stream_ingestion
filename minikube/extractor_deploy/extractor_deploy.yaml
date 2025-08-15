@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ws-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ws-scraper
+  template:
+    metadata:
+      labels:
+        app: ws-scraper
+    spec:
+      containers:
+        - name: ws-scraper
+          image: ws_scraper:v1.0
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONPATH
+              value: /app
+            - name: ALPACA_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cc
+                  key: ALPACA_KEY
+            - name: ALPACA_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-creds
+                  key: ALPACA_SECRET
+      volumes:
+        - name: config-volume
+          configMap:
+            name: app-config

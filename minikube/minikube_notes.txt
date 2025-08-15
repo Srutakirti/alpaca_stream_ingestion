@@ -1,0 +1,40 @@
+minikube start --mount --mount-string="/nvmewd/minikube_mount:/shr"
+
+MINIKUBE_HOME for setting the dir of minikuibe stuff like minikube images etc.CAn set in bashrc for automation.
+docker daemon data dir for changing local docker image dir
+
+Scraper websocket
+Config has to be mounted for us to use  the scraper config
+
+Kafka
+in kafka deploy yaml for strimzi have mentioned the node port for accessing externally
+
+kubectl -n pinot-quickstart run kafka-producer -ti --image=quay.io/strimzi/kafka:0.47.0-kafka-3.9.0 --rm=true --restart=Never -- bin/kafka-console-producer.sh --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 --topic my-topic1
+kubectl -n pinot-quickstart run kafka-consumer -ti --image=quay.io/strimzi/kafka:0.47.0-kafka-3.9.0 --rm=true --restart=Never -- bin/kafka-console-consumer.sh --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 --topic my-topic --from-beginning
+##create topic below is the active topic
+kubectl -n pinot-quickstart run kafka-topic-create -ti \
+  --image=quay.io/strimzi/kafka:0.47.0-kafka-3.9.0 \
+  --rm=true \
+  --restart=Never \
+  --command -- \
+  bin/kafka-topics.sh \
+  --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 \
+  --create \
+  --topic my-topic1 \
+  --partitions 3 \
+  --replication-factor 1
+
+  python3 samplegen.py | kubectl -n pinot-quickstart run kafka-producer-11 -i \
+  --image=quay.io/strimzi/kafka:0.47.0-kafka-3.9.0 \
+  --rm=true \
+  --restart=Never \
+  --command -- \
+  bin/kafka-console-producer.sh \
+  --broker-list my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 \
+  --topic my-topic1
+
+
+
+Spark
+Using uv to setup the pyspark python env
+have to run it from within spark installation directory
