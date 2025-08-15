@@ -1,0 +1,11 @@
+#build the image inside minikube
+
+eval $(minikube docker-env)
+docker build -t my-jupyter-image .
+minikube image load my-jupyter-image
+
+$ docker save -o my-jupyter-image.tar my-jupyter-image
+$ minikube image load my-jupyter-image.tar
+
+
+minikube service jupyterlab

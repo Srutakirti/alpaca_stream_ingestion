@@ -32,25 +32,56 @@ class Metrics:
             "connection_status": cls.connection_status
         }
 
-def setup_logging(config: Config) -> CloudLoggingHandler:
-    """Setup GCP Cloud Logging."""
-    gcp_client = google.cloud.logging.Client()
-    cloud_handler = CloudLoggingHandler(
-        gcp_client,
-        name=config.get('logging.name'),
-        transport=BackgroundThreadTransport
-    )
-    logging.basicConfig(
-        level=config.get('logging.level'),
-        handlers=[cloud_handler, logging.StreamHandler(sys.stdout)],
-        format="%(asctime)s %(levelname)s: %(message)s"
-    )
-    return cloud_handler
+# def setup_logging(config: Config) -> CloudLoggingHandler:
+#     """Setup GCP Cloud Logging."""
+#     gcp_client = google.cloud.logging.Client()
+#     cloud_handler = CloudLoggingHandler(
+#         gcp_client,
+#         name=config.get('logging.name'),
+#         transport=BackgroundThreadTransport
+#     )
+#     logging.basicConfig(
+#         level=config.get('logging.level'),
+#         handlers=[cloud_handler, logging.StreamHandler(sys.stdout)],
+#         format="%(asctime)s %(levelname)s: %(message)s"
+#     )
+#     return cloud_handler
+
+def setup_logging(config: Config) -> Optional[logging.Logger]:
+    """Setup logging based on config.mode: cloud, stdout, or both."""
+    mode = config.get('logging.mode', 'both').lower()
+    level = config.get('logging.level', 'INFO')
+    logger = logging.getLogger(config.get('logging.name', 'default'))
+    logger.setLevel(level)
+
+    # Clear existing handlers to avoid duplication
+    logger.handlers.clear()
+    print(mode)
+    # Add handlers conditionally
+    if mode in ('cloud', 'both'):
+        gcp_client = google.cloud.logging.Client()
+        cloud_handler = CloudLoggingHandler(
+            client=gcp_client,
+            name=config.get('logging.name', 'default'),
+            transport=BackgroundThreadTransport
+        )
+        logger.addHandler(cloud_handler)
+
+    if mode in ('stdout', 'both'):
+        stream_handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+    
+    logger.info(f"Logging initialized with mode: {mode}, level: {level}")
+
+    return logger
 
 async def consume_websocket_and_send_to_kafka(
     producer: AIOKafkaProducer,
     config: Config,
-    shutdown_event: asyncio.Event
+    shutdown_event: asyncio.Event,
+    logger: logging.Logger
 ) -> None:
     """Consumes messages from Alpaca WebSocket and produces to Kafka."""
     backoff = 1
@@ -59,7 +90,7 @@ async def consume_websocket_and_send_to_kafka(
     while not shutdown_event.is_set() and retry_count < config.get('alpaca.max_retries', 5):
         try:
             async with websockets.connect(config.get('alpaca.websocket_uri')) as websocket:
-                logging.info("Connected to Alpaca WebSocket")
+                logger.info("Connected to Alpaca WebSocket")
                 Metrics.connection_status = True
 
                 # Initial connection and authentication
@@ -70,7 +101,7 @@ async def consume_websocket_and_send_to_kafka(
                     "secret": config.get('alpaca.secret')
                 }))
                 auth_response = await websocket.recv()
-                logging.info(f"Auth Response: {auth_response}")
+                logger.info(f"Auth Response: {auth_response}")
 
                 # Subscribe to symbols
                 await websocket.send(json.dumps({
@@ -78,7 +109,7 @@ async def consume_websocket_and_send_to_kafka(
                     "bars": config.get('alpaca.symbols')
                 }))
                 subscribe_response = await websocket.recv()
-                logging.info(f"Subscribe Response: {subscribe_response}")
+                logger.info(f"Subscribe Response: {subscribe_response}")
 
                 backoff = 1  # Reset backoff after successful connection
 
@@ -98,10 +129,10 @@ async def consume_websocket_and_send_to_kafka(
                         Metrics.last_message_time = datetime.now()
                         
                         
-                        logging.info(f"Metrics: {Metrics.get_metrics()}")
+                        logger.info(f"Metrics: {Metrics.get_metrics()}")
                             
                     except asyncio.TimeoutError:
-                        logging.warning(f"Timeout: No message received for {config.get('alpaca.timeout')}s retry_count - {retry_count}")
+                        logger.warning(f"Timeout: No message received for {config.get('alpaca.timeout')}s retry_count - {retry_count}")
                         retry_count += 1
                         break
                         
@@ -109,26 +140,27 @@ async def consume_websocket_and_send_to_kafka(
             Metrics.connection_status = False
             Metrics.errors += 1
             retry_count += 1
-            logging.error(f"Error: {e}. Retry {retry_count}")
+            logger.error(f"Error: {e}. Retry {retry_count}")
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, config.get('alpaca.backoff_max', 120))
 
-    logging.info("Exiting message processing loop")
+    logger.info("Exiting message processing loop")
     Metrics.connection_status = False
 
 async def main() -> None:
     """Main entry point for the application."""
     config = Config('config/config.yaml')
+    logger = setup_logging(config)
     
     if not config.get('alpaca.key') or not config.get('alpaca.secret'):
-        logging.error("ALPACA_KEY and ALPACA_SECRET must be set in environment")
+        logger.error("ALPACA_KEY and ALPACA_SECRET must be set in environment")
         sys.exit(1)
 
-    cloud_handler = setup_logging(config)
+    # cloud_handler = setup_logger(config)
     shutdown_event = asyncio.Event()
     
     def signal_handler(*_):
-        logging.info("Shutdown signal received")
+        logger.info("Shutdown signal received")
         shutdown_event.set()
     
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -142,24 +174,23 @@ async def main() -> None:
     
     try:
         await producer.start()
-        logging.info(f"Started Kafka producer: {config.get('kafka.bootstrap_servers')}")
+        logger.info(f"Started Kafka producer: {config.get('kafka.bootstrap_servers')}")
         
         await consume_websocket_and_send_to_kafka(
             producer=producer,
             config=config,
-            shutdown_event=shutdown_event
+            shutdown_event=shutdown_event,
+            logger=logger
         )
         
     except Exception as e:
-        logging.error(f"Fatal error in main: {e}")
+        logger.error(f"Fatal error in main: {e}")
         Metrics.errors += 1
     
     finally:
-        logging.info("Shutting down...")
+        logger.info("Shutting down...")
         await producer.stop()
-        cloud_handler.flush()
-        cloud_handler.close()
-        logging.info(f"Final metrics: {Metrics.get_metrics()}")
+        logger.info(f"Final metrics: {Metrics.get_metrics()}")
 
 if __name__ == "__main__":
     try:
