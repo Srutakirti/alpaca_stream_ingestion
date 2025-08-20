@@ -1,2 +1,3 @@
+restructure code to make everything modular
 make everything run e2e in kubernetes part by part
 then go and make config centralized use the tool in vscode for help
