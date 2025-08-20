@@ -1,4 +1,4 @@
-##pinot setup commands
+##pinot setup commands for minikube
 helm dependency update
 kubectl create ns pinot-quickstart
 ##below command inside helm directory on pinot repo

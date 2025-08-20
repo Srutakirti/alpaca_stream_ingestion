@@ -7,7 +7,7 @@ from kafka.errors import NoBrokersAvailable
 KAFKA_BOOTSTRAP_SERVERS = ['192.168.49.2:32100']
 
 # 2. The Kafka topic to consume messages from.
-KAFKA_TOPIC = 'iex-topic-1-flattened'
+KAFKA_TOPIC = 'iex-topic-1-flattened-latest'
 
 # 3. Consumer group ID. Using a group ID allows for offset management.
 #    Set to None to be an independent consumer (will always start from the beginning or end).
