@@ -1,0 +1,33 @@
+helm install minio bitnami/minio \
+  --namespace minio \
+  --set auth.rootUser=admin \
+  --set auth.rootPassword=password \
+  --set persistence.existingClaim=minio-pvc \
+  --set persistence.size=100Gi \
+  --set persistence.storageClass="" \
+  --set service.type=NodePort \
+  --set service.nodePort=30950
+
+
+helm upgrade minio bitnami/minio \
+  --namespace minio \
+  --set console.service.type=NodePort \
+  --set console.service.nodePort=30901
+
+ ## its seting some random nodeports  
+  kumararpita@kumararpita-OMEN-Laptop-15-en0xxx:/nvmewd/minikube_mount$ kubectl get svc  -n minio
+NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+minio           ClusterIP   10.102.134.237   <none>        9000/TCP         20m
+minio-console   NodePort    10.97.230.48     <none>        9090:32248/TCP   20m
+
+
+helm upgrade minio bitnami/minio \
+  --namespace minio \
+  --set auth.rootUser=admin \
+  --set auth.rootPassword=password \
+  --set persistence.existingClaim=minio-pvc \
+  --set persistence.size=100Gi \
+  --set persistence.storageClass="" \
+  --set service.type=NodePort \
+  --set service.nodePorts.api=30900 \
+  --set service.nodePorts.console=30950
