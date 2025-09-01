@@ -9,12 +9,10 @@ WORKDIR /app
 RUN apt-get update && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
-COPY extract/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all necessary code
-COPY extract/ ./extract/
-COPY conf_reader.py ./
+COPY . .
 
 
 # Ensure /app is in PYTHONPATH so conf_reader can be imported
@@ -22,4 +20,4 @@ ENV PYTHONPATH=/app
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "extract/alpaca_ws_updated_conf.py"]
+CMD ["python", "/app/alpaca_ws_updated_conf.py"]
