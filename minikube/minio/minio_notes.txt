@@ -1,0 +1,39 @@
+Operator minio deployemnt
+##prequisites
+##set up the storage class for minio using the storageclass yaml
+##setup dir for pv in minikube vm
+docker@minikube:~$ sudo mkdir /mnt/minio-data1
+docker@minikube:~$ sudo chmod -R 777 /mnt/minio-data1
+
+##install the oprator , now there is a direct yaml saved minio-operator.yaml
+kubectl kustomize github.com/minio/operator\?ref=v7.1.1 | kubectl apply -f -
+##check the oeartor in the minio-opearator
+kubectl get pods -n minio-operator
+##use the tenant-minimal.yaml to launch the minio single pool
+
+##using the ingess to access service
+
+mc alias set s3 http://minio-api.192.168.49.2.nip.io minio minio123
+
+
+in the tenant yaml the secret is used 
+and also the ingress to access minio from outside
+
+# creates tenant ns and deploys oprator to minio-oprator ns
+kubectl create namespace minio-tenant
+kubectl kustomize github.com/minio/operator\?ref=v7.1.1 | kubectl apply -f -
+kubectl get pods -n minio-operator
+
+
+##FOR CONNECTING FROM Spark
+get hadoop version in spark-shell
+scala> org.apache.hadoop.util.VersionInfo.getVersion()
+res1: String = 3.3.4
+
+use this for jars
+https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-aws also in the same page in compile time depencies
+you get the aws sdk to donwload , click on the version to download this
+below are the packages currently
+--packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+
+refer this script for all details - test_minio_write.py 

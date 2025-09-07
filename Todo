@@ -1,1 +1,1 @@
-minio is deployed and bucket created now need to submit a spark for history logs
+fix the aplaca_key and alpca_secret to be read from the container

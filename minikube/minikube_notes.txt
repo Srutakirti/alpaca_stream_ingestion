@@ -1,3 +1,6 @@
+have edited /etc/docker/daemon.json to store docker data in /nvmewd , also since minikube uses
+docker as the runtime its images are also stored here
+
 minikube start --mount --mount-string="/nvmewd/minikube_mount:/shr"
 
 MINIKUBE_HOME for setting the dir of minikuibe stuff like minikube images etc.CAn set in bashrc for automation.

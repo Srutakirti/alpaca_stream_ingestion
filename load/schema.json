@@ -1,5 +1,5 @@
 {
-  "schemaName": "stock_ticks_latest",
+  "schemaName": "stock_ticks_latest_1",
   "dimensionFieldSpecs": [
     { "name": "S", "dataType": "STRING" },
     { "name": "T", "dataType": "STRING" }

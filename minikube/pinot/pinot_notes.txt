@@ -1,13 +1,20 @@
 ##pinot setup commands for minikube
+git clone https://github.com/apache/pinot.git
+cd pinot/helm
 helm dependency update
 kubectl create ns pinot-quickstart
 ##below command inside helm directory on pinot repo
-helm install -n pinot-quickstart pinot ./pinot
+helm install -n pinot-quickstart pinot ./
+
+##USE THIS FOR NEW ZOOKEPER IMAGE OLD ONE IS NOT PRESENT
+$helm install -n pinot-quickstart pinot pinot/pinot -f myvalues.yaml^C
+$pwd
+/nvmewd/data/pinot/helm/pinot
 
 
 ##table config
-## schema was created from the UI
-##use this to open UI in browser
+## schema is created from REST Api in in load folder, once you create tables ingestion is automatic.
+##USE THIS TO open ui in browser
 ##kumararpita@kumararpita-OMEN-Laptop-15-en0xxx:c$ ./query-pinot-data.sh 
 
 {

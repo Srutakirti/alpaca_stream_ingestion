@@ -30,6 +30,30 @@ spark-submit \
   --conf spark.eventLog.dir=/tmp \
   local:///opt/python/spark_kafka_test.py
 
+--PYSPARK code
+
+spark-submit \
+  --master k8s://192.168.49.2:8443 \
+  --deploy-mode cluster \
+  --name sp-pyspark \
+  --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
+  --conf spark.kubernetes.container.image=pyspark:v3.5.2.3 \
+  --conf spark.kubernetes.context=minikube \
+  --conf spark.kubernetes.namespace=spark \
+  --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
+  --conf spark.kubernetes.driver.volumes.hostPath.data.mount.path=/shr \
+  --conf spark.kubernetes.driver.volumes.hostPath.data.options.path=/shr\
+  --conf spark.kubernetes.driver.volumes.hostPath.data.options.type=Directory \
+  --conf spark.kubernetes.executor.volumes.hostPath.data.mount.path=/shr \
+  --conf spark.kubernetes.executor.volumes.hostPath.data.options.path=/shr \
+  --conf spark.kubernetes.executor.volumes.hostPath.data.options.type=Directory \
+  --conf spark.ui.enabled=false \
+  --conf spark.eventLog.enabled=true \
+  --conf spark.jars.ivy=/tmp/.ivy2 \
+  --conf spark.eventLog.dir=/tmp \
+  --conf spark.eventLog.dir=s3a://spark-logs \
+  local:///shr/python/test_minio_spark_write.py
+
 
 spark-submit \
   --class Test \

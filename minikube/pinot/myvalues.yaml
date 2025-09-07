@@ -1,0 +1,17 @@
+zookeeper:
+  image:
+    repository: bitnamilegacy/zookeeper
+    tag: "3.9.3-debian-12-r21"
+    pullPolicy: IfNotPresent
+  
+  # Optional: Resource limits for ZooKeeper
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+
+
