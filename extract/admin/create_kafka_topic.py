@@ -7,7 +7,7 @@ from kafka.errors import TopicAlreadyExistsError, NoBrokersAvailable
 KAFKA_BOOTSTRAP_SERVERS = ['192.168.49.2:32100']
 
 # 2. The name of the topic you want to create.
-TOPIC_NAME = 'iex-topic-1-flattened-latest'
+TOPIC_NAME = 'iex-topic-1-flattened'
 # TOPIC_NAME = 'test-iex-consumer'
 
 

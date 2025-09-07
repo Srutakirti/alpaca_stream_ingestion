@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-history-server-config
+  namespace: spark
+data:
+  spark-defaults.conf: |
+    spark.history.fs.logDirectory s3a://spark-logs/events
+    spark.hadoop.fs.s3a.endpoint http://minio.minio-tenant.svc.cluster.local:80
+    spark.hadoop.fs.s3a.access.key minio
+    spark.hadoop.fs.s3a.secret.key minio123
+    spark.hadoop.fs.s3a.path.style.access true
+    spark.hadoop.fs.s3a.connection.ssl.enabled false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-history-server
+  namespace: spark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-history-server
+  template:
+    metadata:
+      labels:
+        app: spark-history-server
+    spec:
+      containers:
+      - name: spark-history-server
+        image: bitnami/spark:3.5.1
+        args: ["/opt/bitnami/spark/bin/spark-class", "org.apache.spark.deploy.history.HistoryServer"]
+        ports:
+        - containerPort: 18080
+        env:
+        - name: SPARK_HISTORY_OPTS
+          value: "-Dspark.history.fs.logDirectory=s3a://spark-logs/events"
+        volumeMounts:
+        - name: spark-config
+          mountPath: /opt/bitnami/spark/conf/spark-defaults.conf
+          subPath: spark-defaults.conf
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+      volumes:
+      - name: spark-config
+        configMap:
+          name: spark-history-server-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-history-server
+  namespace: spark
+spec:
+  selector:
+    app: spark-history-server
+  ports:
+  - protocol: TCP
+    port: 18080
+    targetPort: 18080
+  type: NodePort

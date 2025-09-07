@@ -19,6 +19,5 @@ dependencies = [
 ]
 
 [tool.uv.workspace]
-members = [
-    "extract",
-]
+members = []
+

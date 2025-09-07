@@ -4,7 +4,7 @@ import os
 
 # --- Parameters ---
 controller_url = "http://localhost:9000"   # Pinot Controller URL
-schema_file = "/home/kumararpita/alpaca_stream_ingestion/minikube/pinot/table_creation/table.json"              # Path to schema JSON file
+schema_file = "/home/kumararpita/alpaca_stream_ingestion/load/table.json"              # Path to schema JSON file
 # ------------------
 
 def post_schema(controller_url: str, schema_file: str):
@@ -14,7 +14,7 @@ def post_schema(controller_url: str, schema_file: str):
     with open(schema_file, "r") as f:
         schema_data = json.load(f)
 
-    url = f"{controller_url}/tables"
+    url = f"{controller_url}/tables" ##use schemas or tables based on need
     headers = {"Content-Type": "application/json"}
 
     response = requests.post(url, headers=headers, json=schema_data)

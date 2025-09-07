@@ -7,12 +7,6 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
-[manifest]
-members = [
-    "alpaca-stream-ingestion",
-    "extract",
-]
-
 [[package]]
 name = "aiokafka"
 version = "0.12.0"
@@ -491,17 +485,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/91/50/a9d80c47ff289c611
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/8f/c4d9bafc34ad7ad5d8dc16dd1347ee0e507a52c3adb6bfa8887e1c6a26ba/executing-2.2.0-py2.py3-none-any.whl", hash = "sha256:11387150cad388d62750327a53d3339fad4888b39a6fe233c3afbb54ecffd3aa", size = 26702, upload-time = "2025-01-22T15:41:25.929Z" },
 ]
-
-[[package]]
-name = "extract"
-version = "0.1.0"
-source = { virtual = "extract" }
-dependencies = [
-    { name = "websockets" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "websockets", specifier = ">=15.0.1" }]
 
 [[package]]
 name = "fastjsonschema"

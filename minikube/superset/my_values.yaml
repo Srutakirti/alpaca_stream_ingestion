@@ -1,0 +1,13 @@
+init:
+  loadExamples: true
+configOverrides:
+  secret: |
+    SECRET_KEY = 'apples_dapples'
+bootstrapScript: |
+  #!/bin/bash
+  uv pip install .[postgres] \
+    "pinotdb>=5.0.0,<6.0.0"
+  if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi
+
+
+#pinot://pinot-broker.pinot-quickstart.svc.cluster.local:8099/query?server=http://pinot-controller.pinot-quickstart.svc.cluster.local:9000/

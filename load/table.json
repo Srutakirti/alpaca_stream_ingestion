@@ -1,5 +1,5 @@
 {
-    "tableName": "stock_ticks_latest",
+    "tableName": "stock_ticks_latest_1",
     "tableType": "REALTIME",
     "segmentsConfig": {
       "replicasPerPartition": "1",
@@ -34,7 +34,7 @@
         "streamConfigMaps": [
           {
             "streamType": "kafka",
-            "stream.kafka.topic.name": "iex-topic-1-flattened-latest",
+            "stream.kafka.topic.name": "iex-topic-1-flattened",
             "stream.kafka.broker.list": "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092",
             "stream.kafka.consumer.type": "lowlevel",
             "stream.kafka.decoder.class.name": "org.apache.pinot.plugin.inputformat.json.JSONMessageDecoder",

@@ -5,9 +5,15 @@ in this dir have spark images that can be used but has to run from
 spark installation dir only
 
 #BELOW COMMANDS WERE USED TO BUILD SPARK IMAGES FOR KUBERNETES
-##THESE COMMANDS ARE RUN FROM SPARK INSTALLATION DIR
+##THESE COMMANDS ARE RUN FROM SPARK INSTALLATION DIR -- eg /home/kumararpita/spark/spark-3.5.1-bin-hadoop3
+##Make sure to use the base image tag created from the first step
+make sure you run the spark_resources.yaml file for setting up the service account, namespace and other things
+eval $(minikube docker-env)
 docker build -t spark:v3.5.2.2  -f kubernetes/dockerfiles/spark/Dockerfile .
 docker build   --build-arg base_img=spark:v3.5.2.2   -t pyspark:v3.5.2.3 -f kubernetes/dockerfiles/spark/bindings/python/Dockerfile_pyspark  .
+
+
+
 spark-submit \
   --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 \
   --master k8s://$(minikube ip):8443 \
