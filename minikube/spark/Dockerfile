@@ -14,33 +14,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+ARG java_image_name=azul/zulu-openjdk
+ARG java_image_tag=21
 
-ARG base_img
-
-FROM ${base_img:-spark}
+FROM ${java_image_name}:${java_image_tag}
 LABEL org.opencontainers.image.authors="Apache Spark project <dev@spark.apache.org>"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.ref.name="Apache Spark Python Image"
+LABEL org.opencontainers.image.ref.name="Apache Spark Scala/Java Image"
 # Overwrite this label to avoid exposing the underlying Ubuntu OS version label
 LABEL org.opencontainers.image.version=""
-WORKDIR /
 
-# Reset to root to run installation tasks
-USER 0
+ARG spark_uid=185
 
-RUN mkdir ${SPARK_HOME}/python
-RUN apt-get update && \
-    apt install -y python3 python3-pip && \
-    pip3 install --upgrade pip setuptools && \
-    # Removed the .cache to save space
-    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*
+# Before building the docker image, first build and make a Spark distribution following
+# the instructions in https://spark.apache.org/docs/latest/building-spark.html.
+# If this docker file is being used in the context of building your images from a Spark
+# distribution, the docker build command should be invoked from the top level directory
+# of the Spark distribution. E.g.:
+# docker build -t spark:latest -f kubernetes/dockerfiles/spark/Dockerfile .
 
-COPY python/pyspark ${SPARK_HOME}/python/pyspark
-COPY python/lib ${SPARK_HOME}/python/lib
+RUN set -ex && \
+    apt-get update && \
+    ln -s /lib /lib64 && \
+    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \
+    mkdir -p /opt/spark && \
+    mkdir -p /opt/spark/examples && \
+    mkdir -p /opt/spark/work-dir && \
+    touch /opt/spark/RELEASE && \
+    rm /bin/sh && \
+    ln -sv /bin/bash /bin/sh && \
+    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
+    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
+    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*
+
+COPY jars /opt/spark/jars
+# Copy RELEASE file if exists
+COPY RELEAS[E] /opt/spark/RELEASE
+COPY bin /opt/spark/bin
+COPY sbin /opt/spark/sbin
+COPY kubernetes/dockerfiles/spark/entrypoint.sh /opt/
+COPY kubernetes/dockerfiles/spark/decom.sh /opt/
+COPY examples /opt/spark/examples
+RUN ln -s $(basename /opt/spark/examples/jars/spark-examples_*.jar) /opt/spark/examples/jars/spark-examples.jar
+COPY kubernetes/tests /opt/spark/tests
+COPY data /opt/spark/data
+
+ENV SPARK_HOME=/opt/spark
 
 WORKDIR /opt/spark/work-dir
+RUN chmod g+w /opt/spark/work-dir
+RUN chmod a+x /opt/decom.sh
+
 ENTRYPOINT [ "/opt/entrypoint.sh" ]
 
 # Specify the User that the actual main process will run as
-ARG spark_uid=185
 USER ${spark_uid}
