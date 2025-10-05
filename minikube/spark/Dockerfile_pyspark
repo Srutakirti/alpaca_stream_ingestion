@@ -35,7 +35,7 @@ COPY python/lib ${SPARK_HOME}/python/lib
 
 RUN apt-get update && apt-get install -y curl ca-certificates && \
     # Install uv
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    curl -LsSf https://astral.sh/uv/install.sh -k| sh && \
     # Make uv available globally
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     # Create Python installation directory
