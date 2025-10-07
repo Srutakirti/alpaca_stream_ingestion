@@ -65,7 +65,7 @@ ENTRYPOINT [ "/opt/entrypoint.sh" ]
 
 # Specify the User that the actual main process will run as
 ARG spark_uid=185
-COPY spark_kafka_test.py /opt/python/spark_kafka_test.py
+
 ##below two lines to make ivy cache work
 RUN chown -R 185 /opt/spark
 USER ${spark_uid}
