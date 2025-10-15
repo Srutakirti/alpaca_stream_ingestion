@@ -27,8 +27,8 @@ log_error() {
 
 # Configuration variables
 MINIKUBE_VERSION="v1.36.0"
-KUBECTL_VERSION="v1.28.0"
-HELM_VERSION="v3.13.0"
+KUBECTL_VERSION="v1.34.0"
+HELM_VERSION="v3.19.0"
 SPARK_VERSION="3.5.0"
 HADOOP_VERSION="3"
 JAVA_VERSION="11"
@@ -62,10 +62,12 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
-sudo apt-get install -y docker-ce=5:28.5.0-1~ubuntu.24.04~noble  docker-ce-cli=5:28.5.0-1~ubuntu.24.04~noble  containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install -y docker-ce=5:28.5.1-1~ubuntu.25.04~plucky docker-ce-cli=5:28.5.1-1~ubuntu.25.04~plucky containerd.io docker-buildx-plugin docker-compose-plugin
 
 ##add user to dokcer group
-sudo usermod -aG docker $USER && newgrp docker
+sudo usermod -aG docker $USER
+##newgrp docker kills the shell but is mostly required ??
+#&& newgrp docker
 
 log_info "dokcer installed successfully."
 }
@@ -85,15 +87,84 @@ sudo mkdir -p  $MINIKUBE_MOUNT_DIR
 
 sudo chmod 777 $MINIKUBE_MOUNT_DIR
 
-mkdir $MINIKUBE_MOUNT_MINIO;mkdir $MINIKUBE_MOUNT_SHR ##both would be used one for minio and another for code/jar sharing
+mkdir -p $MINIKUBE_MOUNT_MINIO;mkdir -p $MINIKUBE_MOUNT_SHR ##both would be used one for minio and another for code/jar sharing
 
 minikube config set cpus $MINIKUBE_CPU;minikube config set memory $MINIKUBE_MEMORY ##set it according to the VM
 log_info "minikube installed successfully"
 }
 
+###############################################################################
+# Helm  Installation
+###############################################################################
+install_helm() {
+curl -LO https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz -k
+tar -xzvf helm-$HELM_VERSION-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin
+rm -rf helm-$HELM_VERSION-linux-amd64.tar.gz linux-amd64
+}
+
+###############################################################################
+# Kubectl  Installation
+###############################################################################
+install_kubectl() {
+curl -LO https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl -k
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+}
+
+###############################################################################
+# Java  Installation
+###############################################################################
+
+install_java() {
+echo "Installing OpenJDK 17..."
+sudo apt-get install -y openjdk-17-jdk
+
+echo "Verifying installation..."
+java -version
+javac -version
+
+# Find JDK installation path
+JAVA_PATH=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+
+echo "Setting JAVA_HOME..."
+# Add JAVA_HOME to /etc/environment if not already present
+if grep -q "JAVA_HOME" /etc/environment; then
+    echo "JAVA_HOME already set in /etc/environment"
+else
+    echo "JAVA_HOME=$JAVA_PATH" | sudo tee -a /etc/environment
+    echo "JAVA_HOME added to /etc/environment"
+fi
+
+# Export JAVA_HOME for current session
+export JAVA_HOME=$JAVA_PATH
+echo "JAVA_HOME is set to $JAVA_HOME"
+
+echo "Done."
+}
+
+###############################################################################
+# Spark  Installation
+###############################################################################
+install_spark() {
+curl -L https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz -o ~/spark-download.tgz -k
+# Extract with a specific directory name
+mkdir -p ~/spark-3.5.1
+tar -xzf ~/spark-download.tgz -C ~/spark-3.5.1 --strip-components=1
+# Clean up the downloaded archive file (optional)
+rm ~/spark-download.tgz
+# Verify installation
+echo "Spark extracted to: ~/spark-3.5.1"
+}
+
+
 main() {
 #install_docker
-install_minikube
+#install_minikube
+#install_helm
+#install_kubectl
+#install_java
+install_spark
 }
 
 main
