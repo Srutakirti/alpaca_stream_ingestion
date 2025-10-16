@@ -29,7 +29,7 @@ log_error() {
 MINIKUBE_VERSION="v1.36.0"
 KUBECTL_VERSION="v1.34.0"
 HELM_VERSION="v3.19.0"
-SPARK_VERSION="3.5.0"
+SPARK_VERSION="3.5.1"
 HADOOP_VERSION="3"
 JAVA_VERSION="11"
 UV_VERSION="latest"
@@ -157,6 +157,49 @@ rm ~/spark-download.tgz
 echo "Spark extracted to: ~/spark-3.5.1"
 }
 
+###############################################################################
+# Spark Image Building
+###############################################################################
+build_spark_img() {
+#sudo systemctl restart docker
+#minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
+
+#sudo systemctl restart docker
+eval $(minikube docker-env)
+docker build -t spark:v3.5.2.2  -f ~/alpaca_stream_ingestion/minikube/spark/Dockerfile  ~/spark-3.5.1
+docker build   --build-arg base_img=spark:v3.5.2.2   -t pyspark:v3.5.2.3 -f ~/alpaca_stream_ingestion/minikube/spark/Dockerfile_pyspark ~/spark-3.5.1
+
+}
+
+
+#######setting up kubernetes resources
+###############################################################################
+# Kafka cluster creation
+###############################################################################
+deploy_kafka() {
+kubectl apply -f minikube/kafka/00-kafka_ns.yaml
+kubectl apply -f minikube/kafka/01-stimzi_operator.yaml
+sleep 5
+kubectl apply -f minikube/kafka/02-kafka_deploy.yaml
+}
+
+###############################################################################
+# Pinot Deployment
+###############################################################################
+deploy_pinot() {
+kubectl create ns pinot-quickstart
+helm install -n pinot-quickstart pinot minikube/pinot/pinot-0.3.4.tgz -f minikube/pinot/myvalues.yaml
+}
+
+###############################################################################
+# Minio Deployment
+###############################################################################
+deploy_minio() {
+kubectl apply -f minikube/minio/00-minio-operator.yaml
+sleep 5
+kubectl apply -f minikube/minio
+}
+
 
 main() {
 #install_docker
@@ -164,7 +207,11 @@ main() {
 #install_helm
 #install_kubectl
 #install_java
-install_spark
+#install_spark
+#build_spark_img
+#deploy_kafka
+#deploy_pinot
+deploy_minio
 }
 
 main

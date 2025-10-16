@@ -55,7 +55,7 @@ RUN apt-get update && apt-get install -y curl ca-certificates && \
 # Set environment variables for Python
 ENV UV_PYTHON_INSTALL_DIR="/opt/python"
 ENV PATH="/opt/python/cpython-3.10.12-linux-x86_64-gnu/bin:$PATH"
-ENV PYTHONPATH="${SPARK_HOME}/python:${PYTHONPATH}"
+ENV PYTHONPATH="${SPARK_HOME}/python:"
 
 # Verify installation
 RUN python --version && pip --version && which python
