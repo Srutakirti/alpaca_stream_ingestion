@@ -172,7 +172,17 @@ docker build   --build-arg base_img=spark:v3.5.2.2   -t pyspark:v3.5.2.3 -f ~/al
 }
 
 
-#######setting up kubernetes resources
+#######setting up kubernetes resource
+###############################################################################
+# Minikube Start
+###############################################################################
+minikube_start() {
+
+minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
+
+}
+
+
 ###############################################################################
 # Kafka cluster creation
 ###############################################################################
@@ -208,6 +218,7 @@ main() {
 #install_kubectl
 #install_java
 #install_spark
+minikube_start
 #build_spark_img
 #deploy_kafka
 #deploy_pinot
