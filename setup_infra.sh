@@ -42,6 +42,12 @@ MINIKUBE_CPU=4
 MINIKUBE_MEMORY=31000
 
 ###############################################################################
+# UV  Installation
+###############################################################################
+curl -LsSf https://astral.sh/uv/0.9.2/install.sh -k| sh
+source $HOME/.local/bin/env
+
+###############################################################################
 # Docker  Installation
 ###############################################################################
 
@@ -241,9 +247,12 @@ kubectl apply -f minikube/minio
 ####Setup the DE Application
 
 ###############################################################################
-# Create topics (can be containerized)
+# Create topics and pinot tables (can be containerized)
 ###############################################################################
 uv run extract/admin/create_kafka_topic.py
+uv run load/create.py #(portforwarding must happen for pinot controller)
+##create extractor image and deploy
+##run spark job to read from kafka and write to pinot topic
 
 
 main() {
