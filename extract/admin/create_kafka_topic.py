@@ -60,6 +60,7 @@ def create_topic(TOPIC_LIST):
         # The create_topics method expects a list of NewTopic objects.
         logging.info(f"Attempting to create topics '{TOPIC_LIST}'...")
         resp = admin_client.create_topics(new_topics=topic_objs, validate_only=False)
+        logging.info(f"Topics created in {TOPIC_LIST}")
 
         
         
