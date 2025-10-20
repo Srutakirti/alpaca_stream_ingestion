@@ -26,18 +26,19 @@ log_error() {
 }
 
 # Configuration variables
+DOCKER_VERSION="5:28.5.1-1~ubuntu.25.10~questing"
 MINIKUBE_VERSION="v1.36.0"
 KUBECTL_VERSION="v1.34.0"
 HELM_VERSION="v3.19.0"
 SPARK_VERSION="3.5.1"
 HADOOP_VERSION="3"
-JAVA_VERSION="11"
+JAVA_VERSION="openjdk-17-jdk"
 UV_VERSION="latest"
 
 MINIKUBE_MOUNT_DIR="/mnt/mydrive2"
 MINIKUBE_MOUNT_MINIO="$MINIKUBE_MOUNT_DIR"/minio
 MINIKUBE_MOUNT_SHR="$MINIKUBE_MOUNT_DIR"/shr
-MINIKUBE_CPU=7
+MINIKUBE_CPU=4
 MINIKUBE_MEMORY=31000
 
 ###############################################################################
@@ -62,7 +63,7 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
-sudo apt-get install -y docker-ce=5:28.5.1-1~ubuntu.25.04~plucky docker-ce-cli=5:28.5.1-1~ubuntu.25.04~plucky containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install -y docker-ce=$DOCKER_VERSION docker-ce-cli=$DOCKER_VERSION containerd.io docker-buildx-plugin docker-compose-plugin
 
 ##add user to dokcer group
 sudo usermod -aG docker $USER
@@ -117,8 +118,8 @@ rm kubectl
 ###############################################################################
 
 install_java() {
-echo "Installing OpenJDK 17..."
-sudo apt-get install -y openjdk-17-jdk
+echo "Installing $JAVA_VERSION..."
+sudo apt-get install -y $JAVA_VERSION
 
 echo "Verifying installation..."
 java -version
@@ -157,28 +158,55 @@ rm ~/spark-download.tgz
 echo "Spark extracted to: ~/spark-3.5.1"
 }
 
+
+
+
+#######setting up kubernetes resource
+###############################################################################
+# Enable docker user
+###############################################################################
+enable_docker_user() {
+    log_info "Adding user to docker group..."
+    sudo usermod -aG docker $USER
+    
+    # Create a subshell to run newgrp
+    (
+        exec sg docker -c "
+            # Set environment variable to indicate docker group is active
+            # export DOCKER_GROUP_ACTIVE=1
+            echo 'Docker group enabled in current session'
+        "
+    )
+}
+
+
+###############################################################################
+# Minikube Start
+###############################################################################
+
+# Verify docker access before starting minikube
+# ./docker_perms.sh
+minikube_start() {
+# sudo systemctl restart docker
+if ! docker info >/dev/null 2>&1; then
+    log_error "Failed to run docker command without sudo. Please check docker installation."
+    exit 1
+fi
+minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
+
+}
+
 ###############################################################################
 # Spark Image Building
 ###############################################################################
 build_spark_img() {
-#sudo systemctl restart docker
-#minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
+
+# minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
 
 #sudo systemctl restart docker
 eval $(minikube docker-env)
 docker build -t spark:v3.5.2.2  -f ~/alpaca_stream_ingestion/minikube/spark/Dockerfile  ~/spark-3.5.1
 docker build   --build-arg base_img=spark:v3.5.2.2   -t pyspark:v3.5.2.3 -f ~/alpaca_stream_ingestion/minikube/spark/Dockerfile_pyspark ~/spark-3.5.1
-
-}
-
-
-#######setting up kubernetes resource
-###############################################################################
-# Minikube Start
-###############################################################################
-minikube_start() {
-
-minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
 
 }
 
@@ -210,18 +238,26 @@ sleep 5
 kubectl apply -f minikube/minio
 }
 
+####Setup the DE Application
+
+###############################################################################
+# Create topics (can be containerized)
+###############################################################################
+uv run extract/admin/create_kafka_topic.py
+
 
 main() {
-#install_docker
-#install_minikube
-#install_helm
-#install_kubectl
-#install_java
-#install_spark
+# install_docker
+# install_minikube
+# install_helm
+# install_kubectl
+# install_java
+# install_spark
+# enable_docker_user
 minikube_start
-#build_spark_img
-#deploy_kafka
-#deploy_pinot
+build_spark_img
+deploy_kafka
+deploy_pinot
 deploy_minio
 }
 
