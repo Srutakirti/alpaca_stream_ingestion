@@ -1,6 +1,7 @@
 import logging
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError, NoBrokersAvailable
+import yaml
 
 # --- Configuration ---
 # 1. Kafka bootstrap servers. Replace with your Kafka broker(s).
@@ -10,6 +11,9 @@ KAFKA_BOOTSTRAP_SERVERS = ['192.168.49.2:32100']
 #TOPIC_NAME = 'iex-topic-1-flattened'
 TOPIC_NAME = 'iex-topic-1'
 
+with open('config/config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+    topic_map = config.get('kafka', {}).get('topics', {})
 
 # 3. The number of partitions for the new topic.
 # A good starting point is to match the number of consumers you expect.
@@ -29,7 +33,7 @@ logging.basicConfig(
 )
 
 
-def create_topic():
+def create_topic(TOPIC_LIST):
     """
     Connects to Kafka and creates a new topic based on the configuration.
     """
@@ -42,21 +46,29 @@ def create_topic():
         )
         logging.info("Successfully connected to Kafka brokers.")
 
+        topic_objs = []
+        for TOPIC_NAME in TOPIC_LIST:
         # Define the new topic with its configuration
-        topic = NewTopic(
-            name=TOPIC_NAME,
-            num_partitions=NUM_PARTITIONS,
-            replication_factor=REPLICATION_FACTOR
-        )
+            topic = NewTopic(
+                name=TOPIC_NAME,
+                num_partitions=NUM_PARTITIONS,
+                replication_factor=REPLICATION_FACTOR
+            )
+            topic_objs.append(topic)
 
         # Call the create_topics API
         # The create_topics method expects a list of NewTopic objects.
-        logging.info(f"Attempting to create topic '{TOPIC_NAME}'...")
-        admin_client.create_topics(new_topics=[topic], validate_only=False)
-        logging.info(f"Topic '{TOPIC_NAME}' created successfully.")
+        logging.info(f"Attempting to create topics '{TOPIC_LIST}'...")
+        resp = admin_client.create_topics(new_topics=topic_objs, validate_only=False)
+
+        
+        
+
+
+
 
     except TopicAlreadyExistsError:
-        logging.warning(f"Topic '{TOPIC_NAME}' already exists. No action taken.")
+        logging.warning(f"Topic '{TOPIC_LIST}' already exists. No action taken.")
     except NoBrokersAvailable:
         logging.error(f"Could not connect to any Kafka brokers at {KAFKA_BOOTSTRAP_SERVERS}. Please check the address and ensure Kafka is running.")
     except Exception as e:
@@ -69,4 +81,4 @@ def create_topic():
 
 
 if __name__ == "__main__":
-    create_topic()
+    create_topic(list(topic_map.values()))

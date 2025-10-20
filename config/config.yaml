@@ -4,6 +4,7 @@ kafka:
   bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
   topics:
     raw_trade: "iex-topic-1"
+    flattened_trade: "iex-topic-1-flattened"
   consumer:
     group_id: "offset-checker"
     enable_auto_commit: false
