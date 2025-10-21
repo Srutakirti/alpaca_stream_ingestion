@@ -128,7 +128,8 @@ class KafkaStreamFlattener:
                     .format("kafka")
                     .option("kafka.bootstrap.servers", self.KAFKA_BOOTSTRAP_SERVERS)
                     .option("topic", self.DESTINATION_KAFKA_TOPIC)
-                    .option("checkpointLocation", self.CHECKPOINT_LOCATION)
+                    # .option("checkpointLocation", self.CHECKPOINT_LOCATION) (not depending on s3 for now)
+                    .option("checkpointLocation", "/tmp/tmp1")
                     .start())
         else:
             raise ValueError(f"Invalid OUTPUT_MODE: '{self.OUTPUT_MODE}'. Use 'kafka' or 'console'.")
