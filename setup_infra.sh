@@ -1,4 +1,6 @@
 #!/bin/bash
+#not depending on s3 for now
+# also set alpaca sercrtes as env vars  brofore running this script
 
 ###############################################################################
 # Data Engineering Infrastructure Setup Script
@@ -249,11 +251,27 @@ kubectl apply -f minikube/minio
 ###############################################################################
 # Create topics and pinot tables (can be containerized)
 ###############################################################################
+#(portforwarding must happen for pinot controller create.py to work)
+setup_de_app() { 
+nohup  minikube/pinot/query-pinot-data.sh > /tmp/setup_infra.log 2>&1 &
 uv run extract/admin/create_kafka_topic.py
-uv run load/create.py #(portforwarding must happen for pinot controller)
+uv run load/create.py 
 ##create extractor image and deploy
-##run spark job to read from kafka and write to pinot topic
+kubectl create configmap app-config \
+  --from-file=config.yaml=config/config.yaml
+kubectl create secret generic alpaca-creds \
+  --from-literal=ALPACA_KEY="$ALPACA_KEY" \
+  --from-literal=ALPACA_SECRET="$ALPACA_SECRET"
+eval $(minikube docker-env)
+docker build -t ws_scraper:v1.0 -f extract/app/Dockerfile extract/app
+kubectl apply -f minikube/extractor_deploy/extractor_deploy.yaml
 
+##run spark job to read from kafka and write to pinot topic
+cp transform/spark_streaming_flattener.py $MINIKUBE_MOUNT_SHR
+##setup spark resources
+kubectl apply -f minikube/spark/spark_resources.yaml
+
+}
 
 main() {
 # install_docker
@@ -263,11 +281,12 @@ main() {
 # install_java
 # install_spark
 # enable_docker_user
-minikube_start
-build_spark_img
-deploy_kafka
-deploy_pinot
-deploy_minio
+# minikube_start
+# build_spark_img
+# deploy_kafka
+# deploy_pinot
+# deploy_minio
+setup_de_app            
 }
 
 main
