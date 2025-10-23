@@ -1,3 +1,13 @@
+install ingress and mc cleint
+wget https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x mc
+sudo mv mc  /usr/local/bin
+minikube addons enable ingress
+
+## do this last after minio is up
+mc alias set  s3 http://minio-api.192.168.49.2.nip.io:80  minio minio123
+
+
 Operator minio deployemnt
 ##prequisites
 ##set up the storage class for minio using the storageclass yaml
