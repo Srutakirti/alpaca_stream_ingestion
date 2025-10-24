@@ -99,7 +99,7 @@ sudo chmod 777 $MINIKUBE_MOUNT_DIR
 mkdir -p $MINIKUBE_MOUNT_MINIO;mkdir -p $MINIKUBE_MOUNT_SHR ##both would be used one for minio and another for code/jar sharing
 
 minikube config set cpus $MINIKUBE_CPU;minikube config set memory $MINIKUBE_MEMORY ##set it according to the VM
-minikube addons enable ingress
+# minikube addons enable ingress
 log_info "minikube installed successfully"
 }
 
@@ -202,6 +202,9 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt"
+
+## enable ingress for minio
+minikube addons enable ingress  
 
 }
 
