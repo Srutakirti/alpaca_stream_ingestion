@@ -141,8 +141,11 @@ install_docker() {
 ###############################################################################
 # UV  Installation
 ###############################################################################
+
+install_uv() {
 curl -LsSf https://astral.sh/uv/0.9.2/install.sh -k| sh
 source $HOME/.local/bin/env
+}
 
 ###############################################################################
 # Minikube  Installation
@@ -347,11 +350,24 @@ deploy_minio() {
 ####Setup the DE Application
 
 ###############################################################################
+# setup mc client for buckets
+###############################################################################
+install_mc_client() {
+wget https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x mc
+sudo mv mc  /usr/local/bin
+mc alias set  s3 http://minio-api.192.168.49.2.nip.io:80  minio minio123
+mc mb s3/spark-logs #used for spark app logs
+mc mb s3/data #for chkpt of spark streaming app
+}
+
+###############################################################################
 # Create topics and pinot tables (can be containerized)
 ###############################################################################
 #(portforwarding must happen for pinot controller create.py to work)
 setup_de_app() {
     nohup  minikube/pinot/query-pinot-data.sh > /tmp/setup_infra.log 2>&1 &
+    sleep 5 # sleep to wait for the port forward
     uv run extract/admin/create_kafka_topic.py
     uv run load/create.py
     ##create extractor image and deploy
@@ -380,6 +396,7 @@ main() {
     ensure_docker_group_no_sudo "$@" || { log_error "Could not activate docker group for session"; exit 1; }
 
     # The rest of your flow (kept as comments so you can enable as needed)
+    install_uv
     install_minikube
     install_helm
     install_kubectl
@@ -391,6 +408,7 @@ main() {
     deploy_kafka
     deploy_pinot
     deploy_minio
+    install_mc_client
     setup_de_app
 }
 
