@@ -31,7 +31,6 @@ class KafkaStreamFlattener:
     def _init_spark_session(self):
         """Initialize Spark Session with appropriate configurations"""
         self.spark = (SparkSession.builder
-                     .master("local[*]")
                      .appName("KafkaStreamFlattener")
                      .config("spark.sql.shuffle.partitions", "4")
                      .config("spark.sql.caseSensitive", "true")

@@ -357,7 +357,7 @@ wget https://dl.min.io/client/mc/release/linux-amd64/mc
 chmod +x mc
 sudo mv mc  /usr/local/bin
 mc alias set  s3 http://minio-api.192.168.49.2.nip.io:80  minio minio123
-mc mb s3/spark-logs #used for spark app logs
+mc mb s3/spark-logs/events #used for spark app logs
 mc mb s3/data #for chkpt of spark streaming app
 }
 
