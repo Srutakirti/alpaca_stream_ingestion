@@ -10,7 +10,7 @@ spark-submit \
   --master k8s://192.168.49.2:8443 \
   --deploy-mode cluster \
   --name sp-pyspark \
-  --jars local:///shr/dep_jars/jars/aws-java-sdk-bundle-1.12.262.jar,local:///shr/dep_jars/jars/hadoop-aws-3.3.4.jar,local:///shr/dep_jars/jars/spark-sql-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/kafka-clients-3.4.0.jar,local:///shr/dep_jars/jars/spark-token-provider-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/commons-pool2-2.11.1.jar \
+  --jars local:///shr/dep_jars/jars/aws-java-sdk-bundle-1.12.262.jar,local:///shr/dep_jars/jars/hadoop-aws-3.3.4.jar,local:///shr/dep_jars/jars/spark-sql-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/kafka-clients-3.4.0.jar,local:///shr/dep_jars/jars/spark-token-provider-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/commons-pool2-2.11.1.jar,local:///shr/dep_jars/jars/iceberg-spark-runtime-3.5_2.12-1.9.0.jar \
   --conf spark.kubernetes.container.image=pyspark:v3.5.2.3 \
   --conf spark.kubernetes.context=minikube \
   --conf spark.kubernetes.namespace=spark \
@@ -22,8 +22,10 @@ spark-submit \
   --conf spark.kubernetes.executor.volumes.hostPath.data.options.path=/shr \
   --conf spark.kubernetes.executor.volumes.hostPath.data.options.type=Directory \
   --conf spark.ui.enabled=false \
-  --conf spark.eventLog.enabled=true \
+  --conf spark.eventLog.enabled=false \
   --conf spark.jars.ivy=/tmp/.ivy2 \
+  --conf spark.executor.instances=2 \
+  --conf spark.executor.memory=1g \
   --conf spark.hadoop.fs.s3a.endpoint=minio-api.192.168.49.2.nip.io \
   --conf spark.hadoop.fs.s3a.access.key=minio \
     --conf spark.hadoop.fs.s3a.secret.key=minio123 \
@@ -33,3 +35,6 @@ spark-submit \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
   --conf spark.eventLog.dir=s3a://spark-logs/events \
   local:///shr/python/spark_streaming_flattener.py
+
+#--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.apache.hadoop:hadoop-aws:3.3.4 \
+  # --jars local:///shr/dep_jars/jars/aws-java-sdk-bundle-1.12.262.jar,local:///shr/dep_jars/jars/hadoop-aws-3.3.4.jar,local:///shr/dep_jars/jars/spark-sql-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/kafka-clients-3.4.0.jar,local:///shr/dep_jars/jars/spark-token-provider-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/commons-pool2-2.11.1.jar \
