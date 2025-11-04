@@ -42,7 +42,7 @@ MINIKUBE_MOUNT_SHR="$MINIKUBE_MOUNT_DIR/shr"
 
 # Minikube Resource Configuration
 MINIKUBE_CPU=4
-MINIKUBE_MEMORY=31000
+MINIKUBE_MEMORY=12000
 
 # Paths
 SPARK_HOME="$HOME/spark-$SPARK_VERSION"
@@ -706,11 +706,19 @@ minikube_start() {
     log_info "Starting Minikube..."
     log_info "Mount: $MINIKUBE_MOUNT_DIR -> /mnt"
 
-    minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt" >> "$LOG_FILE" 2>&1
+    if ! minikube start --mount --mount-string="$MINIKUBE_MOUNT_DIR:/mnt" >> "$LOG_FILE" 2>&1; then
+        log_error "Minikube failed to start! Check log: $LOG_FILE"
+        log_error "Last 20 lines of log:"
+        tail -n 20 "$LOG_FILE" >&2
+        exit 1
+    fi
 
     # Enable ingress addon for MinIO
     log_info "Enabling ingress addon..."
-    minikube addons enable ingress >> "$LOG_FILE" 2>&1
+    if ! minikube addons enable ingress >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to enable ingress addon! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/minikube_started"
@@ -756,16 +764,22 @@ build_spark_img() {
 
     # Build base Spark image
     log_info "Building spark:v3.5.2.2..."
-    docker build -t spark:v3.5.2.2 \
+    if ! docker build -t spark:v3.5.2.2 \
         -f "$PROJECT_DIR/minikube/spark/Dockerfile" \
-        "$SPARK_HOME" >> "$LOG_FILE" 2>&1
+        "$SPARK_HOME" >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to build spark:v3.5.2.2 image! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Build PySpark image
     log_info "Building pyspark:v3.5.2.3..."
-    docker build --build-arg base_img=spark:v3.5.2.2 \
+    if ! docker build --build-arg base_img=spark:v3.5.2.2 \
         -t pyspark:v3.5.2.3 \
         -f "$PROJECT_DIR/minikube/spark/Dockerfile_pyspark" \
-        "$SPARK_HOME" >> "$LOG_FILE" 2>&1
+        "$SPARK_HOME" >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to build pyspark:v3.5.2.3 image! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/spark_images_built"
@@ -805,13 +819,23 @@ deploy_kafka() {
 
     log_info "Deploying Kafka cluster..."
 
-    kubectl apply -f minikube/kafka/00-kafka_ns.yaml >> "$LOG_FILE" 2>&1
-    kubectl apply -f minikube/kafka/01-stimzi_operator.yaml >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/kafka/00-kafka_ns.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to create Kafka namespace! Check log: $LOG_FILE"
+        exit 1
+    fi
+
+    if ! kubectl apply -f minikube/kafka/01-stimzi_operator.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy Strimzi operator! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     log_info "Waiting for Strimzi operator to be ready..."
     sleep 5
 
-    kubectl apply -f minikube/kafka/02-kafka_deploy.yaml >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/kafka/02-kafka_deploy.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy Kafka cluster! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/kafka_deployed"
@@ -851,9 +875,13 @@ deploy_pinot() {
     log_info "Deploying Apache Pinot..."
 
     kubectl create ns pinot-quickstart >> "$LOG_FILE" 2>&1 || true
-    helm install -n pinot-quickstart pinot \
+
+    if ! helm install -n pinot-quickstart pinot \
         minikube/pinot/pinot-0.3.4.tgz \
-        -f minikube/pinot/myvalues.yaml >> "$LOG_FILE" 2>&1 || true
+        -f minikube/pinot/myvalues.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy Pinot! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/pinot_deployed"
@@ -892,12 +920,18 @@ deploy_minio() {
 
     log_info "Deploying MinIO..."
 
-    kubectl apply -f minikube/minio/00-minio-operator.yaml >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/minio/00-minio-operator.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy MinIO operator! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     log_info "Waiting for MinIO operator to be ready..."
     sleep 5
 
-    kubectl apply -f minikube/minio >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/minio >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy MinIO tenant! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/minio_deployed"
@@ -1012,11 +1046,17 @@ setup_de_app() {
 
     # Create Kafka topics
     log_info "Creating Kafka topics..."
-    uv run extract/admin/create_kafka_topic.py >> "$LOG_FILE" 2>&1
+    if ! uv run extract/admin/create_kafka_topic.py >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to create Kafka topics! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create Pinot tables
     log_info "Creating Pinot tables..."
-    uv run load/create.py >> "$LOG_FILE" 2>&1
+    if ! uv run load/create.py >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to create Pinot tables! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create ConfigMap and Secret
     log_info "Creating Kubernetes ConfigMap and Secret..."
@@ -1030,20 +1070,32 @@ setup_de_app() {
     # Build extractor image
     log_info "Building WebSocket extractor image..."
     eval $(minikube docker-env)
-    docker build -t ws_scraper:v1.0 \
-        -f extract/app/Dockerfile extract/app >> "$LOG_FILE" 2>&1
+    if ! docker build -t ws_scraper:v1.0 \
+        -f extract/app/Dockerfile extract/app >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to build WebSocket extractor image! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Deploy extractor
     log_info "Deploying WebSocket extractor..."
-    kubectl apply -f minikube/extractor_deploy/extractor_deploy.yaml >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/extractor_deploy/extractor_deploy.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy WebSocket extractor! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Copy Spark scripts to shared mount
     log_info "Copying Spark scripts to shared mount..."
-    cp transform/spark_streaming_flattener.py "$MINIKUBE_MOUNT_SHR"
+    if ! cp transform/spark_streaming_flattener.py "$MINIKUBE_MOUNT_SHR"; then
+        log_error "Failed to copy Spark scripts to shared mount!"
+        exit 1
+    fi
 
     # Apply Spark RBAC resources
     log_info "Applying Spark RBAC resources..."
-    kubectl apply -f minikube/spark/spark_resources.yaml >> "$LOG_FILE" 2>&1
+    if ! kubectl apply -f minikube/spark/spark_resources.yaml >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to apply Spark RBAC resources! Check log: $LOG_FILE"
+        exit 1
+    fi
 
     # Create marker
     touch "$STATE_DIR/app_setup"
