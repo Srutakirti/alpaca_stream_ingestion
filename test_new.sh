@@ -155,8 +155,7 @@ log_error() {
 # Displays usage information and available command-line options.
 ###############################################################################
 show_help() {
-    cat << EOF
-
+    printf '%b\n' "
 ${GREEN}Alpaca Stream Ingestion - Infrastructure Setup Script${NC}
 
 ${YELLOW}USAGE:${NC}
@@ -211,8 +210,7 @@ ${YELLOW}COMPONENTS:${NC}
     Application:     WebSocket Extractor, Spark Streaming Jobs
 
 For more information, see the project documentation.
-
-EOF
+"
 }
 
 ###############################################################################
@@ -669,37 +667,6 @@ install_spark() {
 # ============================================================================
 
 ###############################################################################
-# Enable Docker User
-#
-# Ensures the user is in the docker group and activates it for the current
-# session using 'sg' command.
-#
-# Idempotency:
-#   - Checks if docker commands already work without sudo
-#
-# Dependencies: Docker
-#
-# Side effects:
-#   - Adds user to docker group (if not already)
-#   - Creates subshell with docker group active
-###############################################################################
-enable_docker_user() {
-    # Check if docker already works without sudo
-    if docker info >/dev/null 2>&1; then
-        log_info "Docker already usable without sudo, skipping enable_docker_user."
-        return 0
-    fi
-
-    log_info "Enabling docker group for current user..."
-    sudo usermod -aG docker "$USER"
-
-    # Create a subshell to activate docker group
-    (
-        exec sg docker -c "echo 'Docker group enabled in current session'" >> "$LOG_FILE" 2>&1
-    )
-}
-
-###############################################################################
 # Minikube Start
 #
 # Starts the Minikube Kubernetes cluster with configured resources.
@@ -1140,7 +1107,7 @@ setup_kubernetes_de_tools() {
     log_info "Setting Up Kubernetes & DE Tools"
     log_info "========================================="
 
-    enable_docker_user
+    ensure_docker_group_no_sudo "$@"
     minikube_start
     build_spark_img
     deploy_kafka
