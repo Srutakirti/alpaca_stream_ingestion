@@ -1131,7 +1131,7 @@ run_all() {
     log_info "========================================="
 
     install_all_infra "$@"
-    setup_kubernetes_de_tools
+    setup_kubernetes_de_tools "$@"
     install_mc_client
     setup_de_app
 
@@ -1229,7 +1229,7 @@ else
     fi
 
     if [ "$SETUP_K8S" = true ]; then
-        setup_kubernetes_de_tools
+        setup_kubernetes_de_tools "${ORIGINAL_ARGS[@]}"
     fi
 
     if [ "$INSTALL_MC" = true ]; then
