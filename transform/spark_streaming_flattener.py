@@ -15,9 +15,11 @@ class KafkaStreamFlattener:
     def __init__(self):
         # Configuration
         self.KAFKA_BOOTSTRAP_SERVERS = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        # self.KAFKA_BOOTSTRAP_SERVERS = "192.168.49.2:32100"
         self.SOURCE_KAFKA_TOPIC = "iex-topic-1"
         self.DESTINATION_KAFKA_TOPIC = "iex-topic-1-flattened"
         self.CHECKPOINT_LOCATION = "s3a://data/chkpt1"
+        self.CHECKPOINT_LOCATION_ICEBERG = "s3a://data/chkpt-iceberg-2"
         self.OUTPUT_MODE = "kafka"  # change to "console" for debugging
         self.STARTING_OFFSETS = "earliest"
         
@@ -30,10 +32,37 @@ class KafkaStreamFlattener:
     
     def _init_spark_session(self):
         """Initialize Spark Session with appropriate configurations"""
+
+        packages=",".join(["org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0",
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1",
+            "com.amazonaws:aws-java-sdk-bundle:1.12.262",
+            "org.apache.hadoop:hadoop-aws:3.3.4"])
         self.spark = (SparkSession.builder
                      .appName("KafkaStreamFlattener")
                      .config("spark.sql.shuffle.partitions", "4")
                      .config("spark.sql.caseSensitive", "true")
+                     .config("spark.jars.packages", packages) 
+                      # S3A/MinIO connection settings
+                        .config("spark.hadoop.fs.s3a.endpoint", "http://minio-api.192.168.49.2.nip.io")
+                        .config("spark.hadoop.fs.s3a.access.key", "minio")
+                        .config("spark.hadoop.fs.s3a.secret.key", "minio123")
+                        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+                        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+                        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+                        .config("spark.hadoop.fs.s3a.aws.credentials.provider", 
+                                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+                        
+                        # Multipart upload settings (simple for small files)
+                        .config("spark.hadoop.fs.s3a.fast.upload", "true")
+                        .config("spark.hadoop.fs.s3a.multipart.size", "52428800")  # 50MB (won't be reached)
+                        .config("spark.hadoop.fs.s3a.multipart.threshold", "52428800")  # Start multipart at 50MB
+                        
+                        # Iceberg catalog configuration
+                        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+                        .config("spark.sql.catalog.my_catalog", "org.apache.iceberg.spark.SparkCatalog")
+                        .config("spark.sql.catalog.my_catalog.type", "hadoop")
+                        .config("spark.sql.catalog.my_catalog.warehouse", "s3a://test2/mywarehouse"
+            )
                      .getOrCreate())
         
         # Set log level to ERROR
@@ -70,6 +99,7 @@ class KafkaStreamFlattener:
                            .format("kafka")
                            .option("kafka.bootstrap.servers", self.KAFKA_BOOTSTRAP_SERVERS)
                            .option("subscribe", self.SOURCE_KAFKA_TOPIC)
+                           .option("failOnDataLoss", "false")                          
                            # .option("startingOffsets", self.STARTING_OFFSETS)  # Commented out like in original
                            .load())
         
@@ -129,11 +159,24 @@ class KafkaStreamFlattener:
                     .option("topic", self.DESTINATION_KAFKA_TOPIC)
                     .option("checkpointLocation", self.CHECKPOINT_LOCATION)
                     # .option("checkpointLocation", "/tmp/tmp1")
-                    .start())
+                    )
         else:
             raise ValueError(f"Invalid OUTPUT_MODE: '{self.OUTPUT_MODE}'. Use 'kafka' or 'console'.")
         
         return query
+    
+    def create_output_stream_iceberg(self, output_df):
+        query = (output_df.writeStream
+            .format("iceberg")
+            .outputMode("append")
+            .trigger(processingTime="1 minute")
+            .option("checkpointLocation", self.CHECKPOINT_LOCATION_ICEBERG)
+            .option("fanout-enabled", "true")
+            .option("create-table-if-not-exists", "true")  # This enables auto-creation
+            .toTable("my_catalog.iex_db.raw_stream_iex_2"))
+
+        return query
+
     
     def run_streaming_job(self):
         """Main method to run the streaming job"""
@@ -150,7 +193,8 @@ class KafkaStreamFlattener:
             output_stream = self.rename_and_restructure(flattened_stream)
             
             # Create output stream
-            query = self.create_output_stream(output_stream)
+            query1 = self.create_output_stream(output_stream).start()
+            query2 = self.create_output_stream_iceberg(source_stream)
             
             print("Streaming query started. Waiting for termination...")
             print(f"Output mode: {self.OUTPUT_MODE}")
@@ -159,7 +203,7 @@ class KafkaStreamFlattener:
                 print(f"Destination topic: {self.DESTINATION_KAFKA_TOPIC}")
             
             # Wait for termination
-            query.awaitTermination()
+            self.spark.streams.awaitAnyTermination()
             
         except KeyboardInterrupt:
             print("\nStreaming job interrupted by user")
