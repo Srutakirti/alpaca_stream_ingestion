@@ -41,8 +41,8 @@ MINIKUBE_MOUNT_MINIO="$MINIKUBE_MOUNT_DIR/minio"
 MINIKUBE_MOUNT_SHR="$MINIKUBE_MOUNT_DIR/shr"
 
 # Minikube Resource Configuration
-MINIKUBE_CPU=4
-MINIKUBE_MEMORY=12000
+MINIKUBE_CPU=8
+MINIKUBE_MEMORY=14999  # in MB
 
 # Paths
 SPARK_HOME="$HOME/spark-$SPARK_VERSION"
@@ -1109,6 +1109,16 @@ install_all_infra() {
     log_info "========================================="
 
     install_docker
+    install_uv
+    install_minikube
+    install_helm
+    install_kubectl
+    install_java
+    #install_spark
+
+    log_info "========================================="
+    log_info "✓ All infrastructure components installed"
+    log_info "========================================="
 
     # Check if docker group needs activation
     ensure_docker_group_no_sudo
@@ -1135,18 +1145,6 @@ install_all_infra() {
         log_error "Failed to setup Docker group. Cannot continue."
         exit 1
     fi
-
-    # Docker is working, continue with rest of infrastructure
-    install_uv
-    install_minikube
-    install_helm
-    install_kubectl
-    install_java
-    install_spark
-
-    log_info "========================================="
-    log_info "✓ All infrastructure components installed"
-    log_info "========================================="
 }
 
 ###############################################################################
