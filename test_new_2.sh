@@ -15,7 +15,7 @@
 #   - sudo access
 #   - ALPACA_KEY and ALPACA_SECRET environment variables (for --setup-app)
 #
-# For usage information, run: ./test_new.sh --help
+# For usage information, run: ./test_new_2.sh --help
 ###############################################################################
 
 set -e  # Exit on error
@@ -56,9 +56,6 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
-
-# Docker group activation flag (for re-exec)
-DOCKER_GROUP_ACTIVATED="${DOCKER_GROUP_ACTIVATED:-0}"
 
 # ============================================================================
 # LOGGING FUNCTIONS
@@ -164,6 +161,8 @@ ${YELLOW}USAGE:${NC}
 ${YELLOW}OPTIONS:${NC}
     ${GREEN}--install-infra${NC}       Install base infrastructure components:
                          - Docker, UV, Minikube, Helm, Kubectl, Java, Spark
+                         ${YELLOW}NOTE: If Docker group is added, you must start a new shell
+                         and re-run with --setup-k8s${NC}
 
     ${GREEN}--setup-k8s${NC}           Setup Kubernetes and deploy DE tools:
                          - Start Minikube, build Spark images
@@ -181,21 +180,23 @@ ${YELLOW}OPTIONS:${NC}
                          - Setup Spark resources
 
     ${GREEN}--all${NC}                 Run complete setup (all of the above)
+                         ${YELLOW}NOTE: This may require running in two steps if
+                         Docker group needs to be added${NC}
 
     ${GREEN}-h, --help${NC}            Show this help message
 
 ${YELLOW}EXAMPLES:${NC}
-    # Full setup (requires ALPACA_KEY and ALPACA_SECRET env vars)
-    ALPACA_KEY=xxx ALPACA_SECRET=yyy $0 --all
-
-    # Install only infrastructure components
+    # Step 1: Install infrastructure
     $0 --install-infra
 
-    # Setup Kubernetes tools and application
-    $0 --setup-k8s --setup-app
+    # If prompted, start new shell:
+    su - \$USER
 
-    # Continue from a partial installation
-    $0 --install-mc --setup-app
+    # Step 2: Setup Kubernetes and application
+    $0 --setup-k8s --install-mc --setup-app
+
+    # Or if docker already works, run everything:
+    ALPACA_KEY=xxx ALPACA_SECRET=yyy $0 --all
 
 ${YELLOW}NOTES:${NC}
     - State is tracked in: $STATE_DIR
@@ -203,6 +204,7 @@ ${YELLOW}NOTES:${NC}
     - Script is idempotent - safe to re-run
     - Requires ALPACA_KEY and ALPACA_SECRET for --setup-app
     - Requires sudo access for system installations
+    - If Docker group is added, you must start a new shell before continuing
 
 ${YELLOW}COMPONENTS:${NC}
     Infrastructure:  Docker, UV, Minikube, Helm, Kubectl, Java, Spark
@@ -229,26 +231,20 @@ check_binary_exists() {
 }
 
 # ============================================================================
-# DOCKER GROUP HANDLING (Re-exec mechanism)
+# DOCKER GROUP HANDLING (No re-exec)
 # ============================================================================
 
 ###############################################################################
 # Ensure Docker Group Without Sudo
 #
 # Ensures the current user can run docker commands without sudo.
-# If the user is in the docker group but the session doesn't reflect it,
-# this function will re-exec the script under the docker group using 'sg'.
+# If the user needs to be added to the docker group, adds them but
+# does NOT re-exec the script.
 #
-# This solves the problem where adding a user to docker group requires
-# logout/login to take effect.
-#
-# Idempotency:
-#   - Checks if docker already works without sudo
-#   - Uses DOCKER_GROUP_ACTIVATED flag to prevent infinite re-exec loops
-#
-# Side effects:
-#   - May add user to docker group (requires sudo)
-#   - May re-exec the entire script (current process is replaced)
+# Returns:
+#   0 - Docker already works without sudo
+#   1 - User was added to docker group, needs new shell
+#   2 - Error occurred
 ###############################################################################
 ensure_docker_group_no_sudo() {
     # If docker already usable without sudo, nothing to do
@@ -257,46 +253,24 @@ ensure_docker_group_no_sudo() {
         return 0
     fi
 
-    # Prevent infinite re-exec loops
-    if [ "$DOCKER_GROUP_ACTIVATED" = "1" ]; then
-        log_error "Docker still not usable without sudo after attempting group activation."
+    log_warn "Docker requires sudo access currently."
+
+    # Check if user is already in docker group (but session not active)
+    if id -nG "$USER" | tr ' ' '\n' | grep -xq docker; then
+        log_warn "User $USER is already in docker group, but current shell doesn't reflect it."
+        log_warn "You need to start a new shell to activate the group membership."
         return 1
     fi
 
-    # If user not in docker group, add them (requires sudo)
-    if id -nG "$USER" | tr ' ' '\n' | grep -xq docker; then
-        log_info "User $USER is already in docker group (session doesn't reflect it yet)."
-    else
-        log_info "Adding user $USER to docker group (requires sudo)..."
-        if ! sudo usermod -aG docker "$USER"; then
-            log_error "Failed to add $USER to docker group via sudo. Cannot continue without manual fix."
-            return 1
-        fi
-        log_info "Added $USER to docker group."
+    # User not in docker group, add them (requires sudo)
+    log_info "Adding user $USER to docker group (requires sudo)..."
+    if ! sudo usermod -aG docker "$USER"; then
+        log_error "Failed to add $USER to docker group via sudo."
+        return 2
     fi
 
-    # Mark that we're re-execing so we don't loop, then re-exec the script with the docker group active.
-    export DOCKER_GROUP_ACTIVATED=1
-
-    # Build a safe quoted command and re-exec under docker group.
-    # Use sg if available (POSIX-safe); newgrp fallback if sg missing.
-    CMD=$(printf '%q ' "$0" "$@")
-
-    if command -v sg >/dev/null 2>&1; then
-        log_info "Re-executing script with docker group permissions..."
-        exec sg docker -c "$CMD"
-    else
-        # newgrp - not always available with -c on all distros; we try it as a fallback
-        if newgrp docker -c "$CMD" >/dev/null 2>&1; then
-            exec newgrp docker -c "$CMD"
-        else
-            log_error "Neither 'sg' nor working 'newgrp -c' available to re-exec under docker group."
-            log_error "Please logout/login to pick up group membership."
-            return 1
-        fi
-    fi
-
-    # exec replaces process; we should not reach here.
+    log_info "Successfully added $USER to docker group."
+    log_warn "You need to start a new shell to activate the group membership."
     return 1
 }
 
@@ -403,16 +377,20 @@ install_uv() {
 
     curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh >> "$LOG_FILE" 2>&1
 
-    # Source the environment
-    # if [ -f "$HOME/.local/bin/env" ]; then
-    #     source "$HOME/.local/bin/env"
-    # fi
-    export PATH="$HOME/.local/bin:$PATH" && uv --version
+    # Add UV to PATH permanently
+      if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"; then
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+          log_info "Added UV to PATH in ~/.bashrc"
+      fi
+
+    # Ensure ~/.local/bin is in PATH for current session
+    export PATH="$HOME/.local/bin:$PATH" 
 
     # Create marker
     touch "$STATE_DIR/uv_installed"
 
     log_info "UV installed successfully."
+    log_info "To use UV in your current shell, run: source ~/.bashrc"
 }
 
 ###############################################################################
@@ -1131,7 +1109,34 @@ install_all_infra() {
     log_info "========================================="
 
     install_docker
-    ensure_docker_group_no_sudo "$@"
+
+    # Check if docker group needs activation
+    ensure_docker_group_no_sudo
+    DOCKER_STATUS=$?
+
+    if [ $DOCKER_STATUS -eq 1 ]; then
+        log_warn ""
+        log_warn "========================================="
+        log_warn "ACTION REQUIRED: Docker Group Added"
+        log_warn "========================================="
+        log_warn ""
+        log_warn "Your user has been added to the 'docker' group."
+        log_warn "To activate this group membership, you need to start a new shell."
+        log_warn ""
+        log_warn "Run one of the following commands:"
+        log_warn "  1. su - $USER"
+        log_warn "  2. Or logout and login again"
+        log_warn ""
+        log_warn "Then re-run this script with: $0 --setup-k8s --install-mc --setup-app"
+        log_warn ""
+        log_warn "========================================="
+        exit 0
+    elif [ $DOCKER_STATUS -eq 2 ]; then
+        log_error "Failed to setup Docker group. Cannot continue."
+        exit 1
+    fi
+
+    # Docker is working, continue with rest of infrastructure
     install_uv
     install_minikube
     install_helm
@@ -1162,7 +1167,6 @@ setup_kubernetes_de_tools() {
     log_info "Setting Up Kubernetes & DE Tools"
     log_info "========================================="
 
-    ensure_docker_group_no_sudo "$@"
     minikube_start
     build_spark_img
     deploy_kafka
@@ -1185,8 +1189,8 @@ run_all() {
     log_info "Starting Complete Infrastructure Setup"
     log_info "========================================="
 
-    install_all_infra "$@"
-    setup_kubernetes_de_tools "$@"
+    install_all_infra
+    setup_kubernetes_de_tools
     install_mc_client
     setup_de_app
 
@@ -1221,9 +1225,6 @@ SETUP_K8S=false
 INSTALL_MC=false
 SETUP_APP=false
 RUN_ALL=false
-
-# Store original arguments for re-exec
-ORIGINAL_ARGS=("$@")
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1276,15 +1277,15 @@ log_info "========================================="
 
 # Execute based on flags
 if [ "$RUN_ALL" = true ]; then
-    run_all "${ORIGINAL_ARGS[@]}"
+    run_all
 else
     # Execute selected components
     if [ "$INSTALL_INFRA" = true ]; then
-        install_all_infra "${ORIGINAL_ARGS[@]}"
+        install_all_infra
     fi
 
     if [ "$SETUP_K8S" = true ]; then
-        setup_kubernetes_de_tools "${ORIGINAL_ARGS[@]}"
+        setup_kubernetes_de_tools
     fi
 
     if [ "$INSTALL_MC" = true ]; then
