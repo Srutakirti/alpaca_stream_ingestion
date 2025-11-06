@@ -101,9 +101,10 @@ public class MonitoringApplication {
      */
     private void monitorAllPipelines() {
         String timestamp = LocalDateTime.now().format(DATE_FORMATTER);
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("Pipeline Monitoring Report - " + timestamp);
-        System.out.println("=".repeat(80));
+        logger.info("");
+        logger.info("=".repeat(80));
+        logger.info("Pipeline Monitoring Report - {}", timestamp);
+        logger.info("=".repeat(80));
 
         for (PipelineConfig pipeline : config.getEnabledPipelines()) {
             monitorPipeline(pipeline);
@@ -153,7 +154,7 @@ public class MonitoringApplication {
 
         } catch (Exception e) {
             logger.error("Error monitoring pipeline: {}", pipeline.getName(), e);
-            System.out.println("\n[ERROR] Failed to monitor pipeline: " + pipeline.getName());
+            logger.error("[ERROR] Failed to monitor pipeline: {}", pipeline.getName());
         }
     }
 
@@ -162,28 +163,32 @@ public class MonitoringApplication {
      */
     private void displayPipelineMetrics(String pipelineName, PipelineLagMetrics metrics,
                                        PipelineLagMetrics.MetricsDelta delta) {
-        System.out.println("\n" + "-".repeat(80));
-        System.out.println("Pipeline: " + pipelineName);
-        System.out.println("-".repeat(80));
+        logger.info("");
+        logger.info("-".repeat(80));
+        logger.info("Pipeline: {}", pipelineName);
+        logger.info("-".repeat(80));
 
         // Lag Summary
-        System.out.println("\n  LAG SUMMARY:");
-        System.out.printf("    Spark Lag:     %,10d messages (behind source topic)%n", metrics.getSparkLag());
-        System.out.printf("    Pinot Lag:     %,10d messages (behind sink topic)%n", metrics.getPinotLag());
+        logger.info("");
+        logger.info("  LAG SUMMARY:");
+        logger.info(String.format("    Spark Lag:     %,10d messages (behind source topic)", metrics.getSparkLag()));
+        logger.info(String.format("    Pinot Lag:     %,10d messages (behind sink topic)", metrics.getPinotLag()));
 
         // Delta (messages moved since last check)
-        System.out.println("\n  THROUGHPUT (last " + config.getMonitoring().getIntervalSeconds() + "s):");
-        System.out.printf("    Source Topic:  %,10d messages%n", delta.getSourceMessagesMoved());
-        System.out.printf("    Spark Processed: %,10d messages%n", delta.getSparkMessagesProcessed());
-        System.out.printf("    Sink Topic:    %,10d messages%n", delta.getSinkMessagesMoved());
-        System.out.printf("    Pinot Ingested: %,10d messages%n", delta.getPinotMessagesIngested());
+        logger.info("");
+        logger.info("  THROUGHPUT (last {}s):", config.getMonitoring().getIntervalSeconds());
+        logger.info(String.format("    Source Topic:  %,10d messages", delta.getSourceMessagesMoved()));
+        logger.info(String.format("    Spark Processed: %,10d messages", delta.getSparkMessagesProcessed()));
+        logger.info(String.format("    Sink Topic:    %,10d messages", delta.getSinkMessagesMoved()));
+        logger.info(String.format("    Pinot Ingested: %,10d messages", delta.getPinotMessagesIngested()));
 
         // Total Offsets
-        System.out.println("\n  TOTAL OFFSETS:");
-        System.out.printf("    Source Topic:  %,10d%n", metrics.getSourceTotalOffset());
-        System.out.printf("    Spark Consumed: %,10d%n", metrics.getSparkTotalOffset());
-        System.out.printf("    Sink Topic:    %,10d%n", metrics.getSinkTotalOffset());
-        System.out.printf("    Pinot Consumed: %,10d%n", metrics.getPinotTotalOffset());
+        logger.info("");
+        logger.info("  TOTAL OFFSETS:");
+        logger.info(String.format("    Source Topic:  %,10d", metrics.getSourceTotalOffset()));
+        logger.info(String.format("    Spark Consumed: %,10d", metrics.getSparkTotalOffset()));
+        logger.info(String.format("    Sink Topic:    %,10d", metrics.getSinkTotalOffset()));
+        logger.info(String.format("    Pinot Consumed: %,10d", metrics.getPinotTotalOffset()));
 
         // Partition details (if lag detected)
         if (metrics.getSparkLag() > 1000) {
@@ -207,9 +212,10 @@ public class MonitoringApplication {
             PartitionLagAnalyzer.detectLaggingPartitions(partitionLags, 1.5);
 
         if (!laggingPartitions.isEmpty()) {
-            System.out.println("\n  [WARNING] Lagging Partitions for " + component + ":");
+            logger.warn("");
+            logger.warn("  [WARNING] Lagging Partitions for {}:", component);
             laggingPartitions.values().forEach(lag ->
-                System.out.printf("    %s%n", lag)
+                logger.warn("    {}", lag)
             );
         }
     }

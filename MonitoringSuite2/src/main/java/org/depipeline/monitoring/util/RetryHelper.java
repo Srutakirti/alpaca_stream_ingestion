@@ -3,14 +3,20 @@ package org.depipeline.monitoring.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.function.Supplier;
-
 /**
  * Utility class for retrying operations with exponential backoff.
  */
 public class RetryHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(RetryHelper.class);
+
+    /**
+     * Functional interface that allows checked exceptions.
+     */
+    @FunctionalInterface
+    public interface ThrowingSupplier<T> {
+        T get() throws Exception;
+    }
 
     /**
      * Execute an operation with retry logic and exponential backoff.
@@ -24,7 +30,7 @@ public class RetryHelper {
      * @throws Exception if all retry attempts fail
      */
     public static <T> T executeWithRetry(
-            Supplier<T> operation,
+            ThrowingSupplier<T> operation,
             int maxRetries,
             long initialBackoffMs,
             String operationName) throws Exception {
@@ -64,7 +70,7 @@ public class RetryHelper {
      * Execute an operation with retry logic (with default operation name).
      */
     public static <T> T executeWithRetry(
-            Supplier<T> operation,
+            ThrowingSupplier<T> operation,
             int maxRetries,
             long initialBackoffMs) throws Exception {
         return executeWithRetry(operation, maxRetries, initialBackoffMs, "operation");

@@ -35,7 +35,7 @@ public class KafkaOffsetMonitor implements OffsetMonitor {
         // Configure Admin Client
         Properties adminProps = new Properties();
         adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
+        adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, (int) requestTimeoutMs);
         this.adminClient = AdminClient.create(adminProps);
 
         // Configure Consumer (used to get partition info)
@@ -45,7 +45,7 @@ public class KafkaOffsetMonitor implements OffsetMonitor {
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "offset-monitor-" + UUID.randomUUID());
         consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        consumerProps.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
+        consumerProps.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, (int) requestTimeoutMs);
         this.consumer = new KafkaConsumer<>(consumerProps);
 
         this.maxRetries = maxRetries;
