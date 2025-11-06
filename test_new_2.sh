@@ -258,7 +258,7 @@ ensure_docker_group_no_sudo() {
     # Check if user is already in docker group (but session not active)
     if id -nG "$USER" | tr ' ' '\n' | grep -xq docker; then
         log_warn "User $USER is already in docker group, but current shell doesn't reflect it."
-        log_warn "You need to start a new shell to activate the group membership."
+        log_warn "use newgrp docker to activate, or start a new shell."
         return 1
     fi
 
