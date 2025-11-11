@@ -34,7 +34,11 @@ spark-submit \
     --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
   --conf spark.eventLog.dir=s3a://spark-logs/events \
-  local:///shr/python/spark_streaming_flattener.py
+  local:///shr/python/spark_streaming_flattener_cli.py --kafka-brokers 192.168.49.2:32100 --source-topic stream_test --dest-topic stream_test_flattened --iceberg-table iex_db.raw_stream_iex_simulate_1 \
+  --checkpoint-kafka "s3a://data/chkpt_simulate1_kafka" --checkpoint-iceberg "s3a://data/chkpt_simulate1_iceberg"
 
 #--packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,com.amazonaws:aws-java-sdk-bundle:1.12.262,org.apache.hadoop:hadoop-aws:3.3.4 \
   # --jars local:///shr/dep_jars/jars/aws-java-sdk-bundle-1.12.262.jar,local:///shr/dep_jars/jars/hadoop-aws-3.3.4.jar,local:///shr/dep_jars/jars/spark-sql-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/kafka-clients-3.4.0.jar,local:///shr/dep_jars/jars/spark-token-provider-kafka-0-10_2.12-3.5.1.jar,local:///shr/dep_jars/jars/commons-pool2-2.11.1.jar \
+
+uv run transform/spark_streaming_flattener_cli.py --kafka-brokers 192.168.49.2:32100 --source-topic stream_test --dest-topic stream_test_flattened --iceberg-table iex_db.raw_stream_iex_simulate_1 \
+  --checkpoint-kafka "s3a://data/chkpt_simulate1_kafka" --checkpoint-iceberg "s3a://data/chkpt_simulate1_iceberg" 

@@ -67,7 +67,7 @@ from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType,
     LongType, ArrayType
 )
-from pyspark.sql.streaming import StreamingQuery
+from pyspark.sql.streaming.query import StreamingQuery
 
 # Import Kafka admin for topic creation
 try:
