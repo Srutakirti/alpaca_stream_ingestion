@@ -1,9 +1,0 @@
-3 things
-
-from beginning to end
-Monitor below
--- that messages are being publsihed from webscoket using KafkaOffsetmonitor (KOM)
--- that messages are being consumed by spark flattener app using sparkoffsetchecker (S3 reads for commits) (comapre  with above)
--- offfset of flattened topic (using KOM) and compare to pinot using pinot rest api checks
-
-All are the current goals.

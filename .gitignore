@@ -12,3 +12,15 @@ wheels/
 # custom bash for initialisation
 init.sh
 output.log
+
+# Old/archived directories and files
+_oldgcp
+.claude
+golang
+MonitoringSuite
+MonitoringSuite2
+old_startup_scripts
+spark-3.5.1
+spark-warehouse
+alpaca_login_stuff.txt
+Todo
