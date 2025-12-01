@@ -41,3 +41,13 @@ kubectl -n pinot-quickstart run kafka-topic-create -ti \
 Spark
 Using uv to setup the pyspark python env
 have to run it from within spark installation directory
+
+minikube profiles
+  # 1. Delete any leftover test profile (just to be safe)
+  minikube delete -p kafka-helm-test
+
+  # 2. Start fresh test profile
+  minikube start -p kafka-helm-test \
+    --cpus=4 \
+    --memory=6144 \
+    --driver=docker

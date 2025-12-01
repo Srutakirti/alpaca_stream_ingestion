@@ -216,9 +216,10 @@ class StockStreamProducer:
             record_metadata: Metadata about the sent record (topic, partition, offset)
         """
         self.stats['messages_sent'] += 1
-        self.logger.debug(
-            f"Message sent successfully: {record_metadata.topic}:"
-            f"{record_metadata.partition}:{record_metadata.offset}"
+        self.logger.info(
+            f"✓ Message sent: topic={record_metadata.topic} "
+            f"partition={record_metadata.partition} "
+            f"offset={record_metadata.offset}"
         )
 
     def _on_send_error(self, exception):
@@ -322,6 +323,14 @@ class StockStreamProducer:
         if not self.producer:
             raise RuntimeError("Producer not initialized. Call connect() first.")
 
+        # Log the batch being sent
+        symbols = [r['S'] for r in records]
+        prices = [r['c'] for r in records]
+        self.logger.info(
+            f"→ Sending batch_{batch_id}: {len(records)} records "
+            f"[{', '.join(f'{s}@${p}' for s, p in zip(symbols, prices))}]"
+        )
+
         # Send message with callbacks (non-blocking)
         future = self.producer.send(
             topic=self.topic,
@@ -404,15 +413,6 @@ class StockStreamProducer:
                 # Send to Kafka (non-blocking)
                 self.send_batch(records, message_count)
                 message_count += 1
-
-                # Log sample data every 10 batches
-                if message_count % 10 == 0:
-                    sample_symbols = [r['S'] for r in records]
-                    sample_prices = [r['c'] for r in records]
-                    self.logger.info(
-                        f"Batch #{message_count}: {sample_symbols} "
-                        f"at prices {sample_prices}"
-                    )
 
                 # Print detailed statistics every 100 batches
                 if message_count % 100 == 0:

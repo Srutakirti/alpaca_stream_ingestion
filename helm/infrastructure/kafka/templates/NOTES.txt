@@ -1,0 +1,82 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your Kafka cluster has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ include "kafka.namespace" . }}
+Cluster Name: {{ include "kafka.clusterName" . }}
+
+📊 Check Deployment Status:
+==========================
+
+1. Check Strimzi Operator:
+   kubectl get pods -n {{ include "kafka.namespace" . }} -l name=strimzi-cluster-operator
+
+2. Check Kafka Cluster:
+   kubectl get kafka {{ include "kafka.clusterName" . }} -n {{ include "kafka.namespace" . }}
+
+3. Wait for Kafka to be ready:
+   kubectl wait kafka/{{ include "kafka.clusterName" . }} --for=condition=Ready -n {{ include "kafka.namespace" . }} --timeout=300s
+
+4. Check Kafka pods:
+   kubectl get pods -n {{ include "kafka.namespace" . }} -l strimzi.io/cluster={{ include "kafka.clusterName" . }}
+
+{{- if .Values.topics.create }}
+
+📋 Topics Created:
+=================
+{{- range .Values.topics.definitions }}
+  - {{ .name }} ({{ .partitions }} partitions, {{ .replicas }} replicas)
+{{- end }}
+
+View topics:
+   kubectl get kafkatopics -n {{ include "kafka.namespace" . }}
+{{- end }}
+
+🔌 Connection Details:
+=====================
+
+Internal (from within cluster):
+   Bootstrap Servers: {{ include "kafka.bootstrapServers" . }}
+
+{{- if .Values.kafka.listeners.external.enabled }}
+External (from outside cluster):
+   Bootstrap Servers: {{ include "kafka.bootstrapServersExternal" . }}
+{{- end }}
+
+🛠️  Useful Commands:
+===================
+
+# View Kafka cluster details
+kubectl describe kafka {{ include "kafka.clusterName" . }} -n {{ include "kafka.namespace" . }}
+
+# View Kafka logs
+kubectl logs -n {{ include "kafka.namespace" . }} -l strimzi.io/cluster={{ include "kafka.clusterName" . }} -c kafka
+
+# Create a new topic
+kubectl apply -f - <<EOF
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: my-topic
+  namespace: {{ include "kafka.namespace" . }}
+  labels:
+    strimzi.io/cluster: {{ include "kafka.clusterName" . }}
+spec:
+  partitions: 3
+  replicas: 1
+EOF
+
+# Test with console producer/consumer
+kubectl run kafka-producer -ti --image=quay.io/strimzi/kafka:{{ .Values.kafka.version }}-kafka-3.9.0 --rm=true --restart=Never -n {{ include "kafka.namespace" . }} -- bin/kafka-console-producer.sh --bootstrap-server {{ include "kafka.bootstrapServers" . }} --topic {{ (index .Values.topics.definitions 0).name }}
+
+kubectl run kafka-consumer -ti --image=quay.io/strimzi/kafka:{{ .Values.kafka.version }}-kafka-3.9.0 --rm=true --restart=Never -n {{ include "kafka.namespace" . }} -- bin/kafka-console-consumer.sh --bootstrap-server {{ include "kafka.bootstrapServers" . }} --topic {{ (index .Values.topics.definitions 0).name }} --from-beginning
+
+📚 Documentation:
+================
+Chart Version: {{ .Chart.Version }}
+Kafka Version: {{ .Values.kafka.version }}
+Strimzi Version: 0.47.0
+Strimzi Docs: https://strimzi.io/docs/operators/0.47.0/
+
+For more information, visit: https://strimzi.io

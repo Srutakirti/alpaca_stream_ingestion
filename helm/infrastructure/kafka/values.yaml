@@ -1,0 +1,119 @@
+# Kafka Infrastructure Chart Values
+# This chart deploys Strimzi operator + Kafka cluster
+# Override with: helm install -f ../../config/config.yaml
+
+# Global settings
+global:
+  namespace: kafka
+
+# Strimzi Operator configuration (subchart)
+operator:
+  enabled: true
+  # These values are passed to the strimzi-kafka-operator subchart
+  # watchNamespaces: Leave empty - operator installed in same namespace it watches
+  watchNamespaces: []
+  replicas: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 384Mi
+
+# Kafka cluster configuration
+cluster:
+  enabled: true
+  name: my-cluster
+  namespace: kafka
+
+# Kafka configuration (matches config/config.yaml structure)
+kafka:
+  # Topic definitions - these will be created as KafkaTopic CRDs
+  topics:
+    raw_trade: "iex-topic-1"
+    flattened_trade: "iex-topic-1-flattened"
+
+  # Consumer settings (not used in cluster creation, but available for apps)
+  consumer:
+    group_id: "offset-checker"
+    enable_auto_commit: false
+
+  # Kafka cluster specification
+  version: "3.9.0"
+  metadataVersion: "4.0-IV3"
+
+  # KRaft mode settings
+  kraft:
+    enabled: true
+
+  # Node pool configuration
+  nodePool:
+    name: "dual-role"
+    replicas: 1
+    roles:
+      - controller
+      - broker
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 10Gi
+          deleteClaim: false
+          kraftMetadata: shared
+
+  # Kafka listeners configuration
+  listeners:
+    plain:
+      enabled: true
+      port: 9092
+      type: internal
+      tls: false
+    tls:
+      enabled: true
+      port: 9093
+      type: internal
+      tls: true
+    external:
+      enabled: true
+      port: 9094
+      type: nodeport
+      tls: false
+      nodePort: 32100
+      brokerNodePort: 32000
+      advertisedHost: "192.168.49.2"  # Minikube IP - override if different
+
+  # Kafka broker configuration
+  config:
+    offsets.topic.replication.factor: 1
+    transaction.state.log.replication.factor: 1
+    transaction.state.log.min.isr: 1
+    default.replication.factor: 1
+    min.insync.replicas: 1
+
+  # Entity operators (Topic and User operators)
+  entityOperator:
+    topicOperator:
+      enabled: true
+    userOperator:
+      enabled: true
+
+# Topic creation settings
+topics:
+  # Create topics via KafkaTopic CRDs
+  create: true
+  # Topic specifications
+  definitions:
+    - name: "iex-topic-1"  # Will use {{ .Values.kafka.topics.raw_trade }}
+      partitions: 3
+      replicas: 1
+      config:
+        retention.ms: 604800000  # 7 days
+        compression.type: producer
+    - name: "iex-topic-1-flattened"  # Will use {{ .Values.kafka.topics.flattened_trade }}
+      partitions: 3
+      replicas: 1
+      config:
+        retention.ms: 604800000  # 7 days
+        compression.type: producer

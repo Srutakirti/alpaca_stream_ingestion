@@ -1,0 +1,30 @@
+{{- if .Values.tenant.enabled }}
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  name: {{ include "minio.tenantName" . }}
+  namespace: {{ include "minio.namespace" . }}
+  labels:
+    {{- include "minio.labels" . | nindent 4 }}
+spec:
+  configuration:
+    name: storage-configuration
+  pools:
+    {{- range .Values.minio.pools }}
+    - name: {{ .name }}
+      servers: {{ .servers }}
+      volumesPerServer: {{ .volumesPerServer }}
+      volumeClaimTemplate:
+        metadata:
+          name: data
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ .size }}
+          storageClassName: {{ .storageClassName }}
+    {{- end }}
+  mountPath: {{ .Values.minio.mountPath }}
+  requestAutoCert: {{ .Values.minio.requestAutoCert }}
+{{- end }}

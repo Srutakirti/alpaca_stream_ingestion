@@ -1,1 +1,1 @@
-run docker file from within app
+run docker file from within app dir

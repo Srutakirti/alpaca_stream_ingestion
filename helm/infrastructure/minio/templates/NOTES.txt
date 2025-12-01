@@ -1,0 +1,81 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your MinIO tenant has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ include "minio.namespace" . }}
+Tenant Name: {{ include "minio.tenantName" . }}
+
+📊 Check Deployment Status:
+==========================
+
+1. Check MinIO Operator:
+   kubectl get pods -n minio-operator
+
+2. Check MinIO Tenant:
+   kubectl get tenant {{ include "minio.tenantName" . }} -n {{ include "minio.namespace" . }}
+
+3. Wait for MinIO to be ready:
+   kubectl wait tenant/{{ include "minio.tenantName" . }} --for=condition=Ready -n {{ include "minio.namespace" . }} --timeout=300s
+
+4. Check MinIO pods:
+   kubectl get pods -n {{ include "minio.namespace" . }}
+
+🔌 Connection Details:
+=====================
+
+Internal (from within cluster):
+   API Endpoint: {{ include "minio.apiEndpoint" . }}
+   Console: {{ include "minio.consoleEndpoint" . }}
+
+{{- if .Values.ingress.enabled }}
+External (via Ingress):
+   API: {{ .Values.ingress.api.host }}
+   Console: {{ .Values.ingress.console.host }}
+{{- else }}
+External:
+   API: {{ .Values.minio.endpoint }}
+{{- end }}
+
+Credentials:
+   Access Key: {{ .Values.minio.accessKey }}
+   Secret Key: {{ .Values.minio.secretKey }}
+
+🛠️  Useful Commands:
+===================
+
+# View MinIO tenant details
+kubectl describe tenant {{ include "minio.tenantName" . }} -n {{ include "minio.namespace" . }}
+
+# View MinIO logs
+kubectl logs -n {{ include "minio.namespace" . }} -l app={{ include "minio.tenantName" . }}
+
+# Port forward to access console locally
+kubectl port-forward -n {{ include "minio.namespace" . }} svc/{{ include "minio.tenantName" . }}-console 9090:9090
+
+# Test MinIO with mc (MinIO Client)
+mc alias set myminio {{ include "minio.apiEndpoint" . }} {{ .Values.minio.accessKey }} {{ .Values.minio.secretKey }}
+mc ls myminio
+
+# Create a bucket
+mc mb myminio/test-bucket
+
+# Upload a file
+mc cp myfile.txt myminio/test-bucket/
+
+📚 Storage Information:
+======================
+
+Storage Class: {{ include "minio.storageClassName" . }}
+Total Storage: {{ .Values.minio.storage.size }}
+{{- if .Values.minio.storage.local.enabled }}
+Local Path: {{ .Values.minio.storage.local.path }}
+Node: {{ .Values.minio.storage.local.nodeName }}
+{{- end }}
+
+📚 Documentation:
+================
+Chart Version: {{ .Chart.Version }}
+MinIO Version: {{ .Chart.AppVersion }}
+
+For more information, visit: https://min.io/docs/minio/kubernetes/upstream/
