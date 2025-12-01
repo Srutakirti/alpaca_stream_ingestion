@@ -1,0 +1,26 @@
+{{- if and .Values.persistentVolume.create .Values.minio.storage.local.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.persistentVolume.name }}
+  labels:
+    {{- include "minio.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistentVolume.capacity }}
+  volumeMode: Filesystem
+  accessModes:
+    {{- toYaml .Values.persistentVolume.accessModes | nindent 4 }}
+  persistentVolumeReclaimPolicy: {{ .Values.persistentVolume.reclaimPolicy }}
+  storageClassName: {{ include "minio.storageClassName" . }}
+  local:
+    path: {{ .Values.minio.storage.local.path }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ .Values.minio.storage.local.nodeName }}
+{{- end }}

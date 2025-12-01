@@ -1,0 +1,86 @@
+# MinIO Infrastructure Chart Values
+# This chart deploys MinIO operator + MinIO tenant
+# Override with: helm install -f ../../config/config.yaml
+
+# Global settings
+global:
+  namespace: minio-tenant
+
+# MinIO Operator configuration (subchart)
+operator:
+  enabled: true
+  # MinIO operator will be installed in minio-operator namespace
+
+# MinIO Tenant configuration
+tenant:
+  enabled: true
+  name: minio-single
+  namespace: minio-tenant
+
+# MinIO configuration
+minio:
+  # Root credentials
+  rootUser: "minio"
+  rootPassword: "minio123"
+
+  # S3 endpoint configuration
+  endpoint: "http://minio-api.192.168.49.2.nip.io"
+
+  # Access credentials (same as root for simple setup)
+  accessKey: "minio"
+  secretKey: "minio123"
+
+  # Storage configuration
+  storage:
+    size: 100Gi
+    storageClassName: local-storage
+    reclaimPolicy: Retain
+
+    # Local volume configuration for Minikube
+    local:
+      enabled: true
+      path: /mnt/minio
+      nodeName: minikube  # Override for different minikube profile
+
+  # Tenant pool configuration
+  pools:
+    - name: pool-0
+      servers: 1
+      volumesPerServer: 1
+      size: 100Gi
+      storageClassName: local-storage
+
+  # Browser/Console
+  browser: "on"
+
+  # Request auto cert (TLS)
+  requestAutoCert: false
+
+  # Mount path
+  mountPath: /data
+
+# Storage Class configuration
+storageClass:
+  create: true
+  name: local-storage
+  provisioner: kubernetes.io/no-provisioner
+  volumeBindingMode: WaitForFirstConsumer
+
+# Persistent Volume configuration
+persistentVolume:
+  create: true
+  name: minio-pv1
+  capacity: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  reclaimPolicy: Retain
+
+# Ingress configuration (optional)
+ingress:
+  enabled: false
+  api:
+    host: minio-api.192.168.49.2.nip.io
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  console:
+    host: minio-console.192.168.49.2.nip.io

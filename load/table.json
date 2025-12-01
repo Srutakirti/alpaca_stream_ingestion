@@ -1,5 +1,5 @@
 {
-    "tableName": "stock_ticks_latest_1",
+    "tableName": "stock_ticks_latest_2",
     "tableType": "REALTIME",
     "segmentsConfig": {
       "replicasPerPartition": "1",

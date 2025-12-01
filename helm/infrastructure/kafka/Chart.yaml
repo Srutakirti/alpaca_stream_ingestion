@@ -1,0 +1,23 @@
+apiVersion: v2
+name: kafka
+description: Kafka infrastructure chart using Strimzi operator for Alpaca streaming pipeline
+type: application
+version: 0.1.0
+appVersion: "3.9.0"
+
+keywords:
+  - kafka
+  - strimzi
+  - streaming
+  - messaging
+
+maintainers:
+  - name: Alpaca Stream Team
+
+# Dependencies - Strimzi operator from official repo
+dependencies:
+  - name: strimzi-kafka-operator
+    alias: operator
+    version: 0.47.0
+    repository: https://strimzi.io/charts/
+    condition: operator.enabled

@@ -1,0 +1,61 @@
+{{- if .Values.cluster.enabled }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ include "kafka.clusterName" . }}
+  namespace: {{ include "kafka.namespace" . }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+  annotations:
+    strimzi.io/node-pools: enabled
+    {{- if .Values.kafka.kraft.enabled }}
+    strimzi.io/kraft: enabled
+    {{- end }}
+spec:
+  kafka:
+    version: {{ .Values.kafka.version }}
+    {{- if .Values.kafka.metadataVersion }}
+    metadataVersion: {{ .Values.kafka.metadataVersion }}
+    {{- end }}
+    listeners:
+      {{- if .Values.kafka.listeners.plain.enabled }}
+      - name: plain
+        port: {{ .Values.kafka.listeners.plain.port }}
+        type: {{ .Values.kafka.listeners.plain.type }}
+        tls: {{ .Values.kafka.listeners.plain.tls }}
+      {{- end }}
+      {{- if .Values.kafka.listeners.tls.enabled }}
+      - name: tls
+        port: {{ .Values.kafka.listeners.tls.port }}
+        type: {{ .Values.kafka.listeners.tls.type }}
+        tls: {{ .Values.kafka.listeners.tls.tls }}
+      {{- end }}
+      {{- if .Values.kafka.listeners.external.enabled }}
+      - name: external
+        port: {{ .Values.kafka.listeners.external.port }}
+        type: {{ .Values.kafka.listeners.external.type }}
+        tls: {{ .Values.kafka.listeners.external.tls }}
+        configuration:
+          bootstrap:
+            nodePort: {{ .Values.kafka.listeners.external.nodePort }}
+          brokers:
+          - broker: 0
+            nodePort: {{ .Values.kafka.listeners.external.brokerNodePort }}
+            advertisedHost: {{ .Values.kafka.listeners.external.advertisedHost }}
+      {{- end }}
+    config:
+      offsets.topic.replication.factor: {{ index .Values.kafka.config "offsets.topic.replication.factor" }}
+      transaction.state.log.replication.factor: {{ index .Values.kafka.config "transaction.state.log.replication.factor" }}
+      transaction.state.log.min.isr: {{ index .Values.kafka.config "transaction.state.log.min.isr" }}
+      default.replication.factor: {{ index .Values.kafka.config "default.replication.factor" }}
+      min.insync.replicas: {{ index .Values.kafka.config "min.insync.replicas" }}
+  {{- if or .Values.kafka.entityOperator.topicOperator.enabled .Values.kafka.entityOperator.userOperator.enabled }}
+  entityOperator:
+    {{- if .Values.kafka.entityOperator.topicOperator.enabled }}
+    topicOperator: {}
+    {{- end }}
+    {{- if .Values.kafka.entityOperator.userOperator.enabled }}
+    userOperator: {}
+    {{- end }}
+  {{- end }}
+{{- end }}

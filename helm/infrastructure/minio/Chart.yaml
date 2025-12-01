@@ -1,0 +1,23 @@
+apiVersion: v2
+name: minio
+description: MinIO infrastructure chart using MinIO Operator for Alpaca streaming pipeline
+type: application
+version: 0.1.0
+appVersion: "RELEASE.2025-01-20T17-14-31Z"
+
+keywords:
+  - minio
+  - storage
+  - s3
+  - object-storage
+
+maintainers:
+  - name: Alpaca Stream Team
+
+# Dependencies - MinIO operator from official repo
+dependencies:
+  - name: operator
+    alias: minio-operator
+    version: 7.1.1
+    repository: https://operator.min.io
+    condition: operator.enabled
