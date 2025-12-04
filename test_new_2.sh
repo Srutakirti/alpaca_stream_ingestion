@@ -6,9 +6,9 @@
 # real-time financial data streaming and analytics.
 #
 # Components installed:
-#   - Docker, UV, Minikube, Helm, Kubectl, Java, Spark
-#   - Kafka (Strimzi), Apache Pinot, MinIO
-#   - WebSocket extractor, Spark streaming jobs
+#   - Docker, UV, Minikube, Helm, Kubectl, Java
+#   - Kafka (Strimzi), Apache Pinot, MinIO (via unified Helm data-stack)
+#   - WebSocket extractor, Kstreams processing application
 #
 # Prerequisites:
 #   - Ubuntu Linux
