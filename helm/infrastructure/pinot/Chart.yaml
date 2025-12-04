@@ -1,0 +1,13 @@
+apiVersion: v2
+name: pinot
+description: Apache Pinot Helm chart for Kubernetes - realtime distributed OLAP datastore
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: pinot
+    alias: pinot-chart
+    version: 0.3.5
+    repository: https://raw.githubusercontent.com/apache/pinot/master/helm
+    condition: pinot-chart.enabled

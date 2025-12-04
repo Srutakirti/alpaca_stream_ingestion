@@ -76,11 +76,13 @@ persistentVolume:
   reclaimPolicy: Retain
 
 # Ingress configuration (optional)
+# Enable this to access MinIO via ingress (requires nginx ingress controller)
+# minikube addons enable ingress
 ingress:
-  enabled: false
+  enabled: true
   api:
     host: minio-api.192.168.49.2.nip.io
     annotations:
-      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
   console:
-    host: minio-console.192.168.49.2.nip.io
+    host: minio.192.168.49.2.nip.io  # Console UI

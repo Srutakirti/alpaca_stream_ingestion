@@ -1,0 +1,78 @@
+🎉 Alpaca Data Stack deployed successfully!
+
+Your complete data infrastructure is now running.
+
+Release: {{ .Release.Name }}
+Namespace: Multiple (kafka, minio-tenant, pinot)
+
+📊 COMPONENT STATUS
+==================
+
+{{- if .Values.kafka.enabled }}
+✅ Kafka (namespace: kafka)
+   Internal: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+   External: {{ .Values.global.minikubeIp }}:32100
+   Topics: {{ len .Values.kafka.topics.definitions }} created
+
+   Check status:
+   kubectl get kafka my-cluster -n kafka
+   kubectl get kafkatopics -n kafka
+{{- end }}
+
+{{- if index .Values "minio-infra" "enabled" }}
+✅ MinIO (namespace: minio-tenant)
+   API: http://minio.minio-tenant.svc.cluster.local
+   Credentials: {{ index .Values "minio-infra" "minio" "rootUser" }} / {{ index .Values "minio-infra" "minio" "rootPassword" }}
+   Storage: {{ index .Values "minio-infra" "minio" "storage" "size" }} at {{ index .Values "minio-infra" "minio" "storage" "local" "path" }}
+
+   Check status:
+   kubectl get tenant minio-single -n minio-tenant
+   kubectl get pods -n minio-tenant
+{{- end }}
+
+{{- if .Values.pinot.enabled }}
+✅ Pinot (namespace: pinot)
+   Controller: http://pinot-pinot-chart-controller.pinot.svc.cluster.local:9000
+   Broker: http://pinot-pinot-chart-broker.pinot.svc.cluster.local:8099
+   Kafka Integration: {{ .Values.pinot.kafka.bootstrapServers }}
+   
+   Check status:
+   kubectl get pods -n pinot
+{{- end }}
+
+🔌 QUICK ACCESS COMMANDS
+========================
+
+# View all infrastructure pods
+kubectl get pods --all-namespaces | grep -E 'kafka|minio|pinot'
+
+# Test Kafka (produce message)
+kubectl run kafka-producer -ti --image=quay.io/strimzi/kafka:3.9.0-kafka-3.9.0 --rm=true --restart=Never -n kafka -- bin/kafka-console-producer.sh --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 --topic iex-topic-1
+
+# Access MinIO with mc client
+mc alias set minio http://{{ .Values.global.minikubeIp }}:30900 {{ index .Values "minio-infra" "minio" "rootUser" }} {{ index .Values "minio-infra" "minio" "rootPassword" }}
+mc ls minio
+
+# Access Pinot Controller UI (port forward)
+kubectl port-forward -n pinot svc/pinot-pinot-chart-controller 9000:9000
+
+🛠️  TROUBLESHOOTING
+===================
+
+# Check component health
+helm status {{ .Release.Name }}
+
+# View logs
+kubectl logs -n kafka -l strimzi.io/cluster=my-cluster
+kubectl logs -n minio-tenant -l app=minio-single
+kubectl logs -n pinot -l component=controller
+
+📚 DOCUMENTATION
+================
+
+For more information, see the README files in each component chart:
+- helm/infrastructure/kafka/README.md
+- helm/infrastructure/minio/README.md
+- helm/infrastructure/pinot/README.md
+
+Enjoy your Alpaca Data Stack! 🦙

@@ -1,0 +1,12 @@
+dependencies:
+- name: kafka
+  repository: file://../kafka
+  version: 0.1.0
+- name: minio
+  repository: file://../minio
+  version: 0.1.0
+- name: pinot
+  repository: file://../pinot
+  version: 0.1.0
+digest: sha256:9a4742a82e22bb76674f3d04464c770154c65908deaf855c4cbf95fe237f9990
+generated: "2025-12-04T10:44:14.577986335+05:30"

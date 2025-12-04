@@ -1,0 +1,26 @@
+apiVersion: v2
+name: data-stack
+description: Alpaca Data Stack - Unified infrastructure deployment for Kafka, MinIO, and Pinot
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+maintainers:
+  - name: Alpaca Team
+
+dependencies:
+  - name: kafka
+    version: 0.1.0
+    repository: file://../kafka
+    condition: kafka.enabled
+
+  - name: minio
+    version: 0.1.0
+    repository: file://../minio
+    condition: minio.enabled
+    alias: minio-infra
+
+  - name: pinot
+    version: 0.1.0
+    repository: file://../pinot
+    condition: pinot.enabled

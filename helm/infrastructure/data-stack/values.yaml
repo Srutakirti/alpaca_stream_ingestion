@@ -1,0 +1,203 @@
+# Alpaca Data Stack - Umbrella Chart Values
+# Override these values with config/config.yaml or --set flags
+
+global:
+  environment: development
+  minikubeIp: "192.168.49.2"
+
+# Kafka Infrastructure
+kafka:
+  enabled: true
+  
+  operator:
+    enabled: true
+    watchNamespaces: []
+    replicas: 1
+
+  cluster:
+    enabled: true
+    name: my-cluster
+    replicas: 1
+    mode: dual-role
+    
+    storage:
+      size: 10Gi
+      storageClass: standard
+    
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 500m
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+
+  topics:
+    create: true
+    definitions:
+      - name: iex-topic-1
+        partitions: 3
+        replicas: 1
+        config:
+          retention.ms: 604800000
+          compression.type: producer
+
+      - name: iex-topic-1-flattened
+        partitions: 3
+        replicas: 1
+        config:
+          retention.ms: 604800000
+          compression.type: producer
+
+  externalAccess:
+    enabled: true
+    type: nodeport
+    nodePort: 32100
+
+# MinIO Infrastructure
+minio-infra:
+  enabled: true
+
+  global:
+    namespace: minio-tenant
+
+  operator:
+    enabled: true
+
+  tenant:
+    enabled: true
+    name: minio-single
+    namespace: minio-tenant
+
+  minio:
+    rootUser: "minio"
+    rootPassword: "minio123"
+    endpoint: "http://minio-api.192.168.49.2.nip.io"
+    accessKey: "minio"
+    secretKey: "minio123"
+
+    storage:
+      size: 100Gi
+      storageClassName: local-storage
+      reclaimPolicy: Retain
+      
+      local:
+        enabled: true
+        path: /mnt/minio
+        nodeName: minikube
+
+    pools:
+      - name: pool-0
+        servers: 1
+        volumesPerServer: 1
+        size: 100Gi
+        storageClassName: local-storage
+
+    browser: "on"
+    requestAutoCert: false
+    mountPath: /data
+
+  storageClass:
+    create: true
+    name: local-storage
+    provisioner: kubernetes.io/no-provisioner
+    volumeBindingMode: WaitForFirstConsumer
+
+  persistentVolume:
+    create: true
+    name: minio-pv1
+    capacity: 100Gi
+    accessModes:
+      - ReadWriteOnce
+    reclaimPolicy: Retain
+
+  ingress:
+    enabled: true  # Set to true to enable ingress
+    api:
+      host: minio-api.192.168.49.2.nip.io
+      annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    console:
+      host: minio.192.168.49.2.nip.io  # Console UI
+
+# Pinot Infrastructure
+pinot:
+  enabled: true
+
+  pinot-chart:
+    enabled: true
+
+    zookeeper:
+      enabled: true
+      image:
+        repository: bitnamilegacy/zookeeper
+        tag: "3.9.3-debian-12-r21"
+        pullPolicy: IfNotPresent
+      replicaCount: 1
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+
+    controller:
+      enabled: true
+      replicaCount: 1
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      persistence:
+        enabled: false
+        size: 10Gi
+
+    broker:
+      enabled: true
+      replicaCount: 1
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      service:
+        type: NodePort
+        port: 8099
+        nodePort: 30099
+
+    server:
+      enabled: true
+      replicaCount: 1
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      persistence:
+        enabled: false
+        size: 10Gi
+
+    minion:
+      enabled: false
+      replicaCount: 0
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+
+  kafka:
+    bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    topics:
+      - name: "iex-topic-1-flattened"
+        schema: "stock_ticks_1"

@@ -1,0 +1,95 @@
+# Pinot Infrastructure Chart Values
+
+pinot-chart:
+  enabled: true
+
+  # ZooKeeper configuration
+  zookeeper:
+    enabled: true
+    image:
+      repository: bitnamilegacy/zookeeper
+      tag: "3.9.3-debian-12-r21"
+      pullPolicy: IfNotPresent
+
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+  # Pinot Controller configuration
+  controller:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    persistence:
+      enabled: false
+      size: 10Gi
+
+  # Pinot Broker configuration
+  broker:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    service:
+      type: NodePort
+      port: 8099
+      nodePort: 30099
+
+  # Pinot Server configuration
+  server:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    persistence:
+      enabled: false
+      size: 10Gi
+
+  # Pinot Minion configuration (optional)
+  minion:
+    enabled: false
+    replicaCount: 0
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+# Kafka integration configuration
+# These values will be used when creating Pinot tables
+kafka:
+  bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  topics:
+    - name: "iex-topic-1-flattened"
+      schema: "stock_ticks_1"
