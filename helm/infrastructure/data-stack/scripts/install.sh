@@ -31,7 +31,7 @@ echo ""
 # Install Pinot
 echo "🔄 Installing Pinot..."
 cd "$CHART_DIR/../pinot"
-helm upgrade --install pinot . --namespace pinot --create-namespace --wait --timeout 5m
+helm upgrade --install pinot . --namespace pinot --create-namespace --wait --timeout 10m
 echo "✅ Pinot installed"
 echo ""
 
