@@ -173,13 +173,19 @@ ${YELLOW}OPTIONS:${NC}
     ${GREEN}--setup-app${NC}           Setup application components:
                          - Create Kafka topics
                          - Create Pinot tables
-                         - Deploy WebSocket extractor
+                         - Create ConfigMap and Secret
+                         ${YELLOW}NOTE: Does NOT deploy WebSocket extractor${NC}
 
     ${GREEN}--deploy-kstreams${NC}    Deploy KStreams stream processor:
                          - Build KStreams Docker image
                          - Deploy to Kubernetes (kafka namespace)
 
+    ${GREEN}--deploy-extractor${NC}   Deploy WebSocket extractor:
+                         - Build extractor Docker image
+                         - Deploy extractor pod
+
     ${GREEN}--all${NC}                 Run complete setup (all of the above)
+                         ${YELLOW}NOTE: Includes WebSocket extractor deployment${NC}
                          ${YELLOW}NOTE: This may require running in two steps if
                          Docker group needs to be added${NC}
 
@@ -820,7 +826,9 @@ install_mc_client() {
 #   - Port-forwards Pinot controller
 #   - Creates Kafka topics
 #   - Creates Pinot schema and tables
-#   - Builds and deploys WebSocket extractor
+#   - Creates ConfigMap and Secret
+#
+# Note: Does NOT deploy WebSocket extractor (use deploy_extractor for that)
 #
 # Idempotency:
 #   - Checks for state marker: $STATE_DIR/app_setup
@@ -834,8 +842,6 @@ install_mc_client() {
 #
 # Side effects:
 #   - Creates Kubernetes ConfigMaps and Secrets
-#   - Builds Docker image in Minikube
-#   - Deploys extractor pod
 ###############################################################################
 setup_de_app() {
     # Check state marker
@@ -881,6 +887,46 @@ setup_de_app() {
         --from-literal=ALPACA_KEY="$ALPACA_KEY" \
         --from-literal=ALPACA_SECRET="$ALPACA_SECRET" >> "$LOG_FILE" 2>&1 || true
 
+    # Create marker
+    touch "$STATE_DIR/app_setup"
+
+    log_info "DE application setup completed successfully."
+}
+
+###############################################################################
+# Deploy WebSocket Extractor
+#
+# Builds and deploys the WebSocket extractor pod.
+#
+# Idempotency:
+#   - Checks for state marker: $STATE_DIR/extractor_deployed
+#   - Checks if pod exists
+#
+# Dependencies:
+#   - Kafka (deployed)
+#   - Minikube (running)
+#   - ConfigMap and Secret created (from setup_de_app)
+#
+# Side effects:
+#   - Builds Docker image in Minikube
+#   - Deploys extractor pod
+###############################################################################
+deploy_extractor() {
+    # Check state marker
+    if [ -f "$STATE_DIR/extractor_deployed" ]; then
+        log_info "Skipping extractor deployment (marker found)."
+        return 0
+    fi
+
+    # Check if pod exists
+    if kubectl get pod ws-scraper >/dev/null 2>&1; then
+        log_info "WebSocket extractor pod already exists, skipping."
+        touch "$STATE_DIR/extractor_deployed"
+        return 0
+    fi
+
+    log_info "Deploying WebSocket extractor..."
+
     # Build extractor image
     log_info "Building WebSocket extractor image..."
     eval $(minikube docker-env)
@@ -891,16 +937,16 @@ setup_de_app() {
     fi
 
     # Deploy extractor
-    log_info "Deploying WebSocket extractor..."
+    log_info "Deploying WebSocket extractor pod..."
     if ! kubectl apply -f minikube/extractor_deploy/extractor_deploy.yaml >> "$LOG_FILE" 2>&1; then
         log_error "Failed to deploy WebSocket extractor! Check log: $LOG_FILE"
         exit 1
     fi
 
     # Create marker
-    touch "$STATE_DIR/app_setup"
+    touch "$STATE_DIR/extractor_deployed"
 
-    log_info "DE application setup completed successfully."
+    log_info "WebSocket extractor deployed successfully."
 }
 
 # ============================================================================
@@ -1003,6 +1049,7 @@ run_all() {
     setup_kubernetes_de_tools
     install_mc_client
     setup_de_app
+    deploy_extractor
 
     log_info ""
     log_info "========================================="
@@ -1030,6 +1077,7 @@ SETUP_K8S=false
 INSTALL_MC=false
 SETUP_APP=false
 DEPLOY_KSTREAMS=false
+DEPLOY_EXTRACTOR=false
 RUN_ALL=false
 
 while [[ $# -gt 0 ]]; do
@@ -1054,6 +1102,10 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_KSTREAMS=true
             shift
             ;;
+        --deploy-extractor)
+            DEPLOY_EXTRACTOR=true
+            shift
+            ;;
         --all)
             RUN_ALL=true
             shift
@@ -1073,7 +1125,8 @@ done
 # If no arguments provided, show help
 if [ "$INSTALL_INFRA" = false ] && [ "$SETUP_K8S" = false ] && \
    [ "$INSTALL_MC" = false ] && [ "$SETUP_APP" = false ] && \
-   [ "$DEPLOY_KSTREAMS" = false ] && [ "$RUN_ALL" = false ]; then
+   [ "$DEPLOY_KSTREAMS" = false ] && [ "$DEPLOY_EXTRACTOR" = false ] && \
+   [ "$RUN_ALL" = false ]; then
     show_help
     exit 0
 fi
@@ -1108,6 +1161,10 @@ else
 
     if [ "$DEPLOY_KSTREAMS" = true ]; then
         deploy_kstreams
+    fi
+
+    if [ "$DEPLOY_EXTRACTOR" = true ]; then
+        deploy_extractor
     fi
 fi
 
