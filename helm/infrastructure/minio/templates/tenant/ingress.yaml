@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.tenant.name }}-ingress
   namespace: {{ .Values.tenant.namespace }}
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.ingress.api.annotations."nginx.ingress.kubernetes.io/proxy-body-size" | quote }}
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ index .Values.ingress.api.annotations "nginx.ingress.kubernetes.io/proxy-body-size" | quote }}
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
