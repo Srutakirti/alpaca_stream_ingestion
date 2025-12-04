@@ -17,21 +17,21 @@ echo ""
 # Install Kafka
 echo "🔄 Installing Kafka..."
 cd "$CHART_DIR/../kafka"
-helm install kafka . --namespace kafka --create-namespace --wait --timeout 5m
+helm upgrade --install kafka . --namespace kafka --create-namespace --wait --timeout 5m
 echo "✅ Kafka installed"
 echo ""
 
 # Install MinIO
 echo "🔄 Installing MinIO..."
 cd "$CHART_DIR/../minio"
-helm install minio-infra . --namespace minio-tenant --create-namespace --wait --timeout 5m
+helm upgrade --install minio-infra . --namespace minio-tenant --create-namespace --wait --timeout 5m
 echo "✅ MinIO installed"
 echo ""
 
 # Install Pinot
 echo "🔄 Installing Pinot..."
 cd "$CHART_DIR/../pinot"
-helm install pinot . --namespace pinot --create-namespace --wait --timeout 5m
+helm upgrade --install pinot . --namespace pinot --create-namespace --wait --timeout 5m
 echo "✅ Pinot installed"
 echo ""
 
