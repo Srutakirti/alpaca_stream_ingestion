@@ -38,6 +38,9 @@ pinot-chart:
       enabled: false
       size: 10Gi
 
+    external:
+      enabled: false  # Disable LoadBalancer service
+
   # Pinot Broker configuration
   broker:
     enabled: true
@@ -55,6 +58,9 @@ pinot-chart:
       type: NodePort
       port: 8099
       nodePort: 30099
+
+    external:
+      enabled: false  # Disable LoadBalancer service
 
   # Pinot Server configuration
   server:
