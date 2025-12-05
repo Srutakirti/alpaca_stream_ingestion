@@ -25,7 +25,7 @@ set -e  # Exit on error
 # ============================================================================
 
 # Version Configuration
-DOCKER_VERSION="5:28.5.1-1~ubuntu.25.10~questing"
+DOCKER_VERSION="5:28.5.1-1~ubuntu.22.04~jammy"
 MINIKUBE_VERSION="v1.36.0"
 KUBECTL_VERSION="v1.34.0"
 HELM_VERSION="v3.19.0"
