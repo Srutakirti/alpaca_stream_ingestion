@@ -5,8 +5,8 @@ API_SECRET = 'YOUR_API_SECRET'
 ASSETS_URL = 'https://paper-api.alpaca.markets/v2/assets'
 
 HEADERS = {
-    "APCA-API-KEY-ID": "***REMOVED***",
-    "APCA-API-SECRET-KEY": "***REMOVED***"
+    "APCA-API-KEY-ID": "PKQ5U55XJIR46N8KR4R6",
+    "APCA-API-SECRET-KEY": "5bphZ1M21lMU32Tu2PC5GfGE116fsTwfY858HG5m"
 }
 
 def get_iex_symbols():

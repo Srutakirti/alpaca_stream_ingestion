@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 from datetime import datetime
 import time
 
@@ -9,8 +10,8 @@ BASE_URL = 'https://data.alpaca.markets/v2/stocks'
 SYMBOL = "AAPL,MSFT,TSLA,AMZN,NFLX"
 
 HEADERS = {
-    "APCA-API-KEY-ID": "***REMOVED***",
-    "APCA-API-SECRET-KEY": "***REMOVED***"
+    "APCA-API-KEY-ID": os.getenv("ALPACA_API_KEY", ""),
+    "APCA-API-SECRET-KEY": os.getenv("ALPACA_API_SECRET", "")
 }
 
 # Earliest available date for IEX is much more limited (~2020+)
