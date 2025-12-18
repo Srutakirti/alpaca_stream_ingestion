@@ -30,11 +30,11 @@ Internal (from within cluster):
 
 {{- if .Values.ingress.enabled }}
 External (via Ingress):
-   API: {{ .Values.ingress.api.host }}
-   Console: {{ .Values.ingress.console.host }}
+   API: http://minio-api.{{ .Values.minio.minikube_ip }}.nip.io
+   Console: http://minio.{{ .Values.minio.minikube_ip }}.nip.io
 {{- else }}
 External:
-   API: {{ .Values.minio.endpoint }}
+   API: http://minio-api.{{ .Values.minio.minikube_ip }}.nip.io
 {{- end }}
 
 Credentials:

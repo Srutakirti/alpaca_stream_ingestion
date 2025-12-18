@@ -18,19 +18,20 @@ tenant:
   namespace: minio-tenant
 
 # MinIO configuration
+# Override these with config/config.yaml: helm install -f config/config.yaml
 minio:
-  # Root credentials
+  # Minikube IP for ingress hosts (will be overridden by config.yaml)
+  minikube_ip: "192.168.49.2"
+
+  # Root credentials (will be overridden by config.yaml)
   rootUser: "minio"
   rootPassword: "minio123"
-
-  # S3 endpoint configuration
-  endpoint: "http://minio-api.192.168.49.2.nip.io"
 
   # Access credentials (same as root for simple setup)
   accessKey: "minio"
   secretKey: "minio123"
 
-  # Storage configuration
+  # Storage configuration (will be overridden by config.yaml)
   storage:
     size: 100Gi
     storageClassName: local-storage
@@ -50,7 +51,7 @@ minio:
       size: 100Gi
       storageClassName: local-storage
 
-  # Browser/Console
+  # Browser/Console (will be overridden by config.yaml)
   browser: "on"
 
   # Request auto cert (TLS)
@@ -78,11 +79,12 @@ persistentVolume:
 # Ingress configuration (optional)
 # Enable this to access MinIO via ingress (requires nginx ingress controller)
 # minikube addons enable ingress
+# Hosts will be dynamically generated using .Values.minio.minikube_ip in templates
 ingress:
   enabled: true
   api:
-    host: minio-api.192.168.49.2.nip.io
+    # host will be: minio-api.{minikube_ip}.nip.io (generated in template)
     annotations:
       nginx.ingress.kubernetes.io/proxy-body-size: "100m"
   console:
-    host: minio.192.168.49.2.nip.io  # Console UI
+    # host will be: minio.{minikube_ip}.nip.io (generated in template)
