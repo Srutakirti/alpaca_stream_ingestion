@@ -49,6 +49,7 @@ logging:
   mode: "stdout"
 
 pinot:
+  #controller_url is not needed if dynamically detected which is happeining now in the setup python script
   controller_url: "http://192.168.49.2:30900"  # NodePort for external access (no port-forward needed)
   schema_file: "load/schema.json"
   table_file: "load/table.json"

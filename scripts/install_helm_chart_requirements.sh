@@ -349,7 +349,6 @@ install_kubectl() {
     touch "$STATE_DIR/kubectl_installed"
 
     log_info "Kubectl installed successfully."
-    kubectl version --client --short
 }
 
 # ============================================================================
@@ -388,28 +387,38 @@ ensure_docker_group_no_sudo
 DOCKER_STATUS=$?
 
 if [ $DOCKER_STATUS -eq 1 ]; then
-    log_warn ""
-    log_warn "========================================="
-    log_warn "ACTION REQUIRED: Docker Group Added"
-    log_warn "========================================="
-    log_warn ""
-    log_warn "Your user has been added to the 'docker' group."
-    log_warn "To activate this group membership, you need to start a new shell."
-    log_warn ""
-    log_warn "Run one of the following commands:"
-    log_warn "  1. newgrp docker"
-    log_warn "  2. su - $USER"
-    log_warn "  3. Or logout and login again"
-    log_warn ""
-    log_warn "Then continue with the Minikube and Helm commands below."
-    log_warn ""
-    log_warn "========================================="
+    echo ""
+    echo ""
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "!!!                                              !!!"
+    echo "!!!   ACTION REQUIRED: Docker Group Updated     !!!"
+    echo "!!!                                              !!!"
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo ""
+    echo "Your user has been added to the 'docker' group."
+    echo "Docker commands WILL NOT WORK until you start a new shell."
+    echo ""
+    echo "To activate the docker group, run ONE of these commands:"
+    echo ""
+    echo "  1. newgrp docker       (activates in current shell)"
+    echo "  2. su - $USER          (starts new login shell)"
+    echo "  3. logout and login    (full session restart)"
+    echo ""
+    echo "After activating the docker group, you can test with:"
+    echo "  docker info"
+    echo ""
+    echo "Then re-run this script or continue with manual commands."
+    echo ""
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo ""
+    # Exit to force user to restart shell
+    exit 3
 elif [ $DOCKER_STATUS -eq 2 ]; then
     log_error "Failed to setup Docker group. Cannot continue."
     exit 1
 fi
 
-# Verify installations
+# Verify installations (only reached if Docker works without sudo)
 log_info ""
 log_info "========================================="
 log_info "✓ Installation Complete"
@@ -419,7 +428,7 @@ log_info "Installed versions:"
 docker --version
 minikube version --short
 helm version --short
-kubectl version --client --short
+kubectl version --client
 
 log_info ""
 log_info "========================================="
@@ -435,27 +444,17 @@ log_info "   echo \$MINIKUBE_IP"
 log_info ""
 log_info "3. Update config/config.yaml with Minikube IP if different from 192.168.49.2"
 log_info ""
-log_info "4. Create namespaces:"
-log_info "   kubectl create namespace kafka"
-log_info "   kubectl create namespace pinot-quickstart"
-log_info ""
-log_info "5. Deploy Kafka:"
+log_info "4. Deploy Kafka (will wait until ready):"
 log_info "   helm install kafka ./helm/infrastructure/kafka \\"
-log_info "     -f config/config.yaml -n kafka"
+log_info "     -f config/config.yaml -n kafka \\"
+log_info "     --create-namespace --wait --timeout 10m"
 log_info ""
-log_info "6. Wait for Kafka to be ready:"
-log_info "   kubectl wait --for=condition=Ready kafka/my-cluster \\"
-log_info "     -n kafka --timeout=600s"
-log_info ""
-log_info "7. Deploy Pinot:"
+log_info "5. Deploy Pinot (will wait until ready):"
 log_info "   helm install pinot ./helm/infrastructure/pinot \\"
-log_info "     -f config/config.yaml -n pinot-quickstart"
+log_info "     -f config/config.yaml -n pinot \\"
+log_info "     --create-namespace --wait --timeout 10m"
 log_info ""
-log_info "8. Wait for Pinot to be ready:"
-log_info "   kubectl wait --for=condition=Ready pods --all \\"
-log_info "     -n pinot-quickstart --timeout=600s"
-log_info ""
-log_info "9. Run setup script:"
+log_info "6. Run setup script to create topics and Pinot schema/table:"
 log_info "   python3 scripts/setup_infrastructure.py"
 log_info ""
 log_info "========================================="

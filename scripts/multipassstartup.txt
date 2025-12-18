@@ -1,5 +1,7 @@
 multipass launch 25.10\
   --name myvm \
-  --memory 15G \
+  --memory 17G \
   --disk 20G \
   --cpus 8
+
+  git clone https://github.com/Srutakirti/alpaca_stream_ingestion.git

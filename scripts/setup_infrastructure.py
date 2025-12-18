@@ -27,6 +27,7 @@ import sys
 import yaml
 import json
 import requests
+import subprocess
 from pathlib import Path
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError, NoBrokersAvailable
@@ -45,6 +46,94 @@ def load_config(config_path):
     """Load config from YAML file."""
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
+
+
+def get_minikube_ip():
+    """Get Minikube IP address."""
+    try:
+        result = subprocess.run(
+            ['minikube', 'ip'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception as e:
+        logger.debug(f"Could not get minikube IP: {e}")
+    return None
+
+
+def detect_pinot_controller_nodeport(namespace='pinot', service_name='pinot-pinot-chart-controller'):
+    """
+    Dynamically detect the Pinot controller NodePort by querying Kubernetes.
+
+    Returns:
+        tuple: (minikube_ip, nodeport) or (None, None) if detection fails
+    """
+    try:
+        # Get the service details as JSON
+        result = subprocess.run(
+            ['kubectl', 'get', 'svc', service_name, '-n', namespace, '-o', 'json'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode != 0:
+            logger.debug(f"Could not get service {service_name}: {result.stderr}")
+            return None, None
+
+        service_data = json.loads(result.stdout)
+
+        # Extract NodePort from service spec
+        if service_data['spec']['type'] == 'NodePort':
+            ports = service_data['spec']['ports']
+            if ports:
+                node_port = ports[0].get('nodePort')
+                if node_port:
+                    # Get minikube IP
+                    minikube_ip = get_minikube_ip()
+                    if minikube_ip:
+                        logger.info(f"Detected Pinot controller at {minikube_ip}:{node_port}")
+                        return minikube_ip, node_port
+                    else:
+                        logger.warning("Could not detect minikube IP, using default 192.168.49.2")
+                        return "192.168.49.2", node_port
+
+        return None, None
+
+    except subprocess.TimeoutExpired:
+        logger.debug("Timeout while detecting Pinot NodePort")
+        return None, None
+    except json.JSONDecodeError as e:
+        logger.debug(f"Could not parse kubectl output: {e}")
+        return None, None
+    except Exception as e:
+        logger.debug(f"Error detecting Pinot NodePort: {e}")
+        return None, None
+
+
+def get_pinot_controller_url(config):
+    """
+    Get Pinot controller URL, trying dynamic detection first, then falling back to config.
+
+    Returns:
+        str: The Pinot controller URL
+    """
+    # Try to dynamically detect the NodePort
+    minikube_ip, node_port = detect_pinot_controller_nodeport()
+
+    if minikube_ip and node_port:
+        url = f"http://{minikube_ip}:{node_port}"
+        logger.info(f"Using dynamically detected Pinot controller: {url}")
+        return url
+
+    # Fall back to config.yaml
+    url = config['pinot']['controller_url']
+    logger.info(f"Using Pinot controller from config: {url}")
+    logger.warning("Could not auto-detect NodePort, using config.yaml value")
+    return url
 
 
 def parse_args():
@@ -129,10 +218,10 @@ def setup_pinot_schema(config, dry_run=False):
     logger.info("STEP 2: Setting up Pinot Schema")
     logger.info("=" * 70)
 
-    controller_url = config['pinot']['controller_url']
+    # Dynamically detect controller URL or use config
+    controller_url = get_pinot_controller_url(config)
     schema_file = config['pinot']['schema_file']
 
-    logger.info(f"Pinot Controller: {controller_url}")
     logger.info(f"Schema File: {schema_file}")
 
     # Load schema from file
@@ -184,10 +273,10 @@ def setup_pinot_table(config, dry_run=False):
     logger.info("STEP 3: Setting up Pinot Table")
     logger.info("=" * 70)
 
-    controller_url = config['pinot']['controller_url']
+    # Dynamically detect controller URL or use config
+    controller_url = get_pinot_controller_url(config)
     table_file = config['pinot']['table_file']
 
-    logger.info(f"Pinot Controller: {controller_url}")
     logger.info(f"Table File: {table_file}")
 
     # Load table config from file
@@ -268,7 +357,8 @@ def verify_setup(config):
 
     # Verify Pinot schema and table
     try:
-        controller_url = config['pinot']['controller_url']
+        # Dynamically detect controller URL or use config
+        controller_url = get_pinot_controller_url(config)
 
         # Load schema and table names from files
         with open(config['pinot']['schema_file'], 'r') as f:
