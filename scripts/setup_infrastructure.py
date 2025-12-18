@@ -2,10 +2,11 @@
 """
 Infrastructure Setup Script
 
-Creates:
+Creates and verifies:
 - Kafka topics (from config.yaml)
 - Pinot schema (from load/schema.json)
 - Pinot table (from load/table.json)
+- MinIO accessibility (health check)
 
 Usage:
     # Setup everything
@@ -328,6 +329,78 @@ def setup_pinot_table(config, dry_run=False):
         return False
 
 
+def verify_minio(config, dry_run=False):
+    """Verify MinIO is accessible and working."""
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("STEP 4: Verifying MinIO")
+    logger.info("=" * 70)
+
+    # Get MinIO endpoint
+    minikube_ip = get_minikube_ip()
+    if not minikube_ip:
+        minikube_ip = config.get('minio', {}).get('minikube_ip', '192.168.49.2')
+
+    minio_api_url = f"http://minio-api.{minikube_ip}.nip.io"
+    minio_console_url = f"http://minio.{minikube_ip}.nip.io"
+
+    logger.info(f"MinIO API URL: {minio_api_url}")
+    logger.info(f"MinIO Console URL: {minio_console_url}")
+
+    if dry_run:
+        logger.info("DRY RUN: Would verify MinIO accessibility")
+        return True
+
+    try:
+        # Check API endpoint (should return 403 or redirect without auth)
+        logger.info("Checking MinIO API endpoint...")
+        response = requests.get(minio_api_url, timeout=10, allow_redirects=False)
+
+        # MinIO API returns 403 Forbidden without credentials, which is expected
+        if response.status_code in [200, 403, 307]:  # 307 is redirect
+            logger.info(f"✓ MinIO API endpoint is accessible (status: {response.status_code})")
+        else:
+            logger.warning(f"MinIO API returned unexpected status: {response.status_code}")
+            logger.warning("MinIO might not be fully ready yet")
+            return False
+
+        # Check console endpoint
+        logger.info("Checking MinIO Console endpoint...")
+        response = requests.get(minio_console_url, timeout=10)
+
+        if response.status_code == 200:
+            logger.info(f"✓ MinIO Console is accessible")
+        else:
+            logger.warning(f"MinIO Console returned status: {response.status_code}")
+            logger.warning("Console might not be fully ready yet")
+            return False
+
+        logger.info("")
+        logger.info("MinIO Credentials (from config):")
+        logger.info(f"  Access Key: {config.get('minio', {}).get('rootUser', 'minio')}")
+        logger.info(f"  Secret Key: {config.get('minio', {}).get('rootPassword', 'minio123')}")
+        logger.info("")
+        logger.info("To configure MinIO client (mc):")
+        logger.info(f"  mc alias set s3 {minio_api_url} minio minio123")
+        logger.info("  mc ls s3/")
+
+        return True
+
+    except requests.exceptions.ConnectionError:
+        logger.error(f"Could not connect to MinIO at {minio_api_url}")
+        logger.error("Make sure MinIO is deployed and ingress is enabled:")
+        logger.error("  kubectl get pods -n minio-tenant")
+        logger.error("  minikube addons enable ingress")
+        return False
+    except requests.exceptions.Timeout:
+        logger.error("Timeout connecting to MinIO")
+        logger.error("MinIO might be starting up. Wait a few minutes and try again.")
+        return False
+    except Exception as e:
+        logger.error(f"Failed to verify MinIO: {e}")
+        return False
+
+
 def verify_setup(config):
     """Verify the setup was successful."""
     logger.info("")
@@ -384,6 +457,24 @@ def verify_setup(config):
     except Exception as e:
         logger.warning(f"Could not verify Pinot resources: {e}")
 
+    # Verify MinIO
+    try:
+        minikube_ip = get_minikube_ip()
+        if not minikube_ip:
+            minikube_ip = config.get('minio', {}).get('minikube_ip', '192.168.49.2')
+
+        minio_api_url = f"http://minio-api.{minikube_ip}.nip.io"
+
+        # Quick health check
+        response = requests.get(minio_api_url, timeout=5, allow_redirects=False)
+        if response.status_code in [200, 403, 307]:
+            logger.info(f"✓ MinIO is accessible at {minio_api_url}")
+        else:
+            logger.warning(f"✗ MinIO health check failed (status: {response.status_code})")
+
+    except Exception as e:
+        logger.warning(f"Could not verify MinIO: {e}")
+
 
 def main():
     """Main entry point."""
@@ -414,6 +505,10 @@ def main():
 
         # Step 3: Pinot table
         if not setup_pinot_table(config, args.dry_run):
+            success = False
+
+        # Step 4: MinIO verification
+        if not verify_minio(config, args.dry_run):
             success = False
 
         # Verify

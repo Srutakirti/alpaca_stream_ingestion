@@ -144,14 +144,12 @@ deploy_kafka() {
         return 0
     fi
 
-    log_info "Deploying Kafka cluster (this will wait until ready)..."
+    log_info "Deploying Kafka cluster..."
 
     if ! helm install kafka "$PROJECT_DIR/helm/infrastructure/kafka" \
         -f "$PROJECT_DIR/config/config.yaml" \
         -n kafka \
-        --create-namespace \
-        --wait \
-        --timeout 10m >> "$LOG_FILE" 2>&1; then
+        --create-namespace >> "$LOG_FILE" 2>&1; then
         log_error "Failed to deploy Kafka! Check log: $LOG_FILE"
         log_error "Last 20 lines of log:"
         tail -n 20 "$LOG_FILE" >&2
@@ -178,14 +176,12 @@ deploy_pinot() {
         return 0
     fi
 
-    log_info "Deploying Apache Pinot (this will wait until ready)..."
+    log_info "Deploying Apache Pinot..."
 
     if ! helm install pinot "$PROJECT_DIR/helm/infrastructure/pinot" \
         -f "$PROJECT_DIR/config/config.yaml" \
         -n pinot \
-        --create-namespace \
-        --wait \
-        --timeout 10m >> "$LOG_FILE" 2>&1; then
+        --create-namespace >> "$LOG_FILE" 2>&1; then
         log_error "Failed to deploy Pinot! Check log: $LOG_FILE"
         log_error "Last 20 lines of log:"
         tail -n 20 "$LOG_FILE" >&2
@@ -212,14 +208,12 @@ deploy_minio() {
         return 0
     fi
 
-    log_info "Deploying MinIO (this will wait until ready)..."
+    log_info "Deploying MinIO..."
 
     if ! helm install minio "$PROJECT_DIR/helm/infrastructure/minio" \
         -f "$PROJECT_DIR/config/config.yaml" \
         -n minio-tenant \
-        --create-namespace \
-        --wait \
-        --timeout 10m >> "$LOG_FILE" 2>&1; then
+        --create-namespace >> "$LOG_FILE" 2>&1; then
         log_error "Failed to deploy MinIO! Check log: $LOG_FILE"
         log_error "Last 20 lines of log:"
         tail -n 20 "$LOG_FILE" >&2
@@ -256,12 +250,19 @@ main() {
     log_info "✓ Kubernetes resources deployed"
     log_info "========================================="
     log_info ""
-    log_info "Infrastructure Status:"
-    log_info "  Kafka:  kubectl get pods -n kafka"
-    log_info "  Pinot:  kubectl get pods -n pinot"
-    log_info "  MinIO:  kubectl get pods -n minio-tenant"
+    log_info "Deployments are starting in the background."
     log_info ""
-    log_info "Next step:"
+    log_info "Check deployment status:"
+    log_info "  Kafka:  kubectl get pods -n kafka -w"
+    log_info "  Pinot:  kubectl get pods -n pinot -w"
+    log_info "  MinIO:  kubectl get pods -n minio-tenant -w"
+    log_info ""
+    log_info "Or check all at once:"
+    log_info "  watch 'kubectl get pods -n kafka && echo && kubectl get pods -n pinot && echo && kubectl get pods -n minio-tenant'"
+    log_info ""
+    log_warn "IMPORTANT: Wait for all pods to be Running/Ready before proceeding!"
+    log_info ""
+    log_info "When all pods are ready, continue with:"
     log_info "  ./scripts/3_setup_apps.sh"
     log_info ""
     log_info "Log file: $LOG_FILE"

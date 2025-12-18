@@ -137,6 +137,70 @@ echo -e "${GREEN}✓ Part 2 completed successfully${NC}"
 echo ""
 
 # ============================================================================
+# WAIT FOR DEPLOYMENTS
+# ============================================================================
+
+echo ""
+echo -e "${YELLOW}======================================================================${NC}"
+echo -e "${YELLOW}     Waiting for Kubernetes Deployments${NC}"
+echo -e "${YELLOW}======================================================================${NC}"
+echo ""
+echo "Deployments are starting. Checking pod status..."
+echo ""
+echo "This may take several minutes depending on your system."
+echo "Press Ctrl+C if you want to check manually and run Part 3 later."
+echo ""
+sleep 5
+
+# Simple polling loop - wait for pods to be ready
+MAX_WAIT=1800  # 30 minutes max
+ELAPSED=0
+INTERVAL=10
+
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+    KAFKA_READY=$(kubectl get pods -n kafka --no-headers 2>/dev/null | grep -E "Running|Completed" | wc -l || echo 0)
+    PINOT_READY=$(kubectl get pods -n pinot --no-headers 2>/dev/null | grep -E "Running|Completed" | wc -l || echo 0)
+    MINIO_READY=$(kubectl get pods -n minio-tenant --no-headers 2>/dev/null | grep -E "Running|Completed" | wc -l || echo 0)
+
+    KAFKA_TOTAL=$(kubectl get pods -n kafka --no-headers 2>/dev/null | wc -l || echo 0)
+    PINOT_TOTAL=$(kubectl get pods -n pinot --no-headers 2>/dev/null | wc -l || echo 0)
+    MINIO_TOTAL=$(kubectl get pods -n minio-tenant --no-headers 2>/dev/null | wc -l || echo 0)
+
+    echo "Status: Kafka ($KAFKA_READY/$KAFKA_TOTAL) | Pinot ($PINOT_READY/$PINOT_TOTAL) | MinIO ($MINIO_READY/$MINIO_TOTAL)"
+
+    # Check if all pods are ready (at least some pods exist and all are running)
+    if [ $KAFKA_TOTAL -gt 0 ] && [ $KAFKA_READY -eq $KAFKA_TOTAL ] && \
+       [ $PINOT_TOTAL -gt 0 ] && [ $PINOT_READY -eq $PINOT_TOTAL ] && \
+       [ $MINIO_TOTAL -gt 0 ] && [ $MINIO_READY -eq $MINIO_TOTAL ]; then
+        echo ""
+        echo -e "${GREEN}✓ All deployments are ready!${NC}"
+        break
+    fi
+
+    sleep $INTERVAL
+    ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+    echo ""
+    echo -e "${YELLOW}Warning: Timeout waiting for deployments (30 minutes).${NC}"
+    echo "Some pods may still be starting. Check manually:"
+    echo "  kubectl get pods -n kafka"
+    echo "  kubectl get pods -n pinot"
+    echo "  kubectl get pods -n minio-tenant"
+    echo ""
+    read -p "Continue with Part 3 anyway? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Setup paused. Run Part 3 manually when ready:"
+        echo "  $SCRIPT_DIR/3_setup_apps.sh"
+        exit 0
+    fi
+fi
+
+echo ""
+
+# ============================================================================
 # PART 3: Setup Applications
 # ============================================================================
 
