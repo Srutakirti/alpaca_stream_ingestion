@@ -38,6 +38,11 @@ pinot-chart:
       enabled: false
       size: 10Gi
 
+    service:
+      type: NodePort
+      port: 9000
+      nodePort: 30900  # External access for REST API (schemas, tables)
+
     external:
       enabled: false  # Disable LoadBalancer service
 
@@ -94,8 +99,13 @@ pinot-chart:
 
 # Kafka integration configuration
 # These values will be used when creating Pinot tables
+# Structure matches config/config.yaml for easy override with -f
 kafka:
-  bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
   topics:
-    - name: "iex-topic-1-flattened"
-      schema: "stock_ticks_1"
+    raw_trade: "iex-topic-1"
+    flattened_trade: "iex-topic-1-flattened"
+
+  # Schema mappings for Pinot table creation
+  schemas:
+    flattened_trade: "stock_ticks_1"

@@ -103,15 +103,15 @@ kafka:
 topics:
   # Create topics via KafkaTopic CRDs
   create: true
-  # Topic specifications
+  # Topic specifications reference kafka.topics for names
   definitions:
-    - name: "iex-topic-1"  # Will use {{ .Values.kafka.topics.raw_trade }}
+    - nameRef: raw_trade  # References .Values.kafka.topics.raw_trade
       partitions: 3
       replicas: 1
       config:
         retention.ms: 604800000  # 7 days
         compression.type: producer
-    - name: "iex-topic-1-flattened"  # Will use {{ .Values.kafka.topics.flattened_trade }}
+    - nameRef: flattened_trade  # References .Values.kafka.topics.flattened_trade
       partitions: 3
       replicas: 1
       config:

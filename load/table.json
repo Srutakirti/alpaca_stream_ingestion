@@ -2,6 +2,7 @@
     "tableName": "stock_ticks_latest_2",
     "tableType": "REALTIME",
     "segmentsConfig": {
+      "schemaName": "stock_ticks_latest_2",
       "replicasPerPartition": "1",
       "timeColumnName": "timestamp",
       "minimizeDataMovement": false

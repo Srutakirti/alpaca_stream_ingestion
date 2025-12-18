@@ -6,9 +6,20 @@ global:
   minikubeIp: "192.168.49.2"
 
 # Kafka Infrastructure
+# Values passed to kafka subchart (file://../kafka)
 kafka:
   enabled: true
-  
+
+  # Kafka configuration (matches config/config.yaml structure)
+  kafka:
+    topics:
+      raw_trade: "iex-topic-1"
+      flattened_trade: "iex-topic-1-flattened"
+
+    consumer:
+      group_id: "offset-checker"
+      enable_auto_commit: false
+
   operator:
     enabled: true
     watchNamespaces: []
@@ -19,11 +30,11 @@ kafka:
     name: my-cluster
     replicas: 1
     mode: dual-role
-    
+
     storage:
       size: 10Gi
       storageClass: standard
-    
+
     resources:
       requests:
         memory: 1Gi
@@ -32,17 +43,18 @@ kafka:
         memory: 2Gi
         cpu: 1000m
 
+  # Topic creation settings (references kafka.kafka.topics above via nameRef)
   topics:
     create: true
     definitions:
-      - name: iex-topic-1
+      - nameRef: raw_trade  # References kafka.topics.raw_trade
         partitions: 3
         replicas: 1
         config:
           retention.ms: 604800000
           compression.type: producer
 
-      - name: iex-topic-1-flattened
+      - nameRef: flattened_trade  # References kafka.topics.flattened_trade
         partitions: 3
         replicas: 1
         config:
@@ -155,6 +167,10 @@ pinot:
       persistence:
         enabled: false
         size: 10Gi
+      service:
+        type: NodePort
+        port: 9000
+        nodePort: 30900
 
     broker:
       enabled: true
@@ -196,8 +212,12 @@ pinot:
           memory: "2Gi"
           cpu: "1000m"
 
+  # Kafka integration config (matches config/config.yaml structure)
   kafka:
-    bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
     topics:
-      - name: "iex-topic-1-flattened"
-        schema: "stock_ticks_1"
+      raw_trade: "iex-topic-1"
+      flattened_trade: "iex-topic-1-flattened"
+
+    schemas:
+      flattened_trade: "stock_ticks_1"

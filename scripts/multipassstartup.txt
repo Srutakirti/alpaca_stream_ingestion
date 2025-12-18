@@ -1,0 +1,5 @@
+multipass launch 25.10\
+  --name myvm \
+  --memory 15G \
+  --disk 20G \
+  --cpus 8

@@ -4,7 +4,11 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
+  {{- if .nameRef }}
+  name: {{ index $.Values.kafka.topics .nameRef }}
+  {{- else }}
   name: {{ .name }}
+  {{- end }}
   namespace: {{ include "kafka.namespace" $ }}
   labels:
     {{- include "kafka.labels" $ | nindent 4 }}
