@@ -104,7 +104,7 @@ setup_infrastructure_resources() {
     log_info "Creating Kafka topics and Pinot schema/table..."
     log_info "Running setup_infrastructure.py..."
 
-    if ! python3 "$PROJECT_DIR/scripts/setup_infrastructure.py" >> "$LOG_FILE" 2>&1; then
+    if ! uv run "$PROJECT_DIR/scripts/setup_infrastructure.py" >> "$LOG_FILE" 2>&1; then
         log_error "Failed to setup infrastructure resources! Check log: $LOG_FILE"
         log_error "Last 20 lines of log:"
         tail -n 20 "$LOG_FILE" >&2

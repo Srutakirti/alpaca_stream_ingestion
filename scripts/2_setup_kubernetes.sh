@@ -124,6 +124,17 @@ minikube_start() {
         exit 1
     fi
 
+    # Wait for ingress controller to be ready
+    log_info "Waiting for nginx ingress controller to be ready..."
+    if ! kubectl wait --namespace ingress-nginx \
+        --for=condition=ready pod \
+        --selector=app.kubernetes.io/component=controller \
+        --timeout=300s >> "$LOG_FILE" 2>&1; then
+        log_warn "Ingress controller took longer than expected, but continuing..."
+    else
+        log_info "✓ Ingress controller is ready"
+    fi
+
     # Create marker
     touch "$STATE_DIR/minikube_started"
 
