@@ -1,18 +1,6 @@
 ---
-# ConfigMap for application configuration
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kstreams-flatten-config
-  namespace: kafka
-data:
-  KAFKA_BROKER: "my-cluster-kafka-bootstrap:9092"
-  INPUT_TOPIC: "iex-topic-1"
-  OUTPUT_TOPIC: "iex-topic-1-flattened"
-  APP_NAME: "t10"
-
----
 # Deployment for Kafka Streams application
+# Uses central ConfigMap (app-config) from config.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,22 +25,32 @@ spec:
         image: kstreams-flatten:1.0.0
         imagePullPolicy: Never  # Use local image in Minikube
 
-        # Command with arguments from ConfigMap
-        command: ["java", "-jar", "app.jar"]
+        # Wrapper script to extract config from YAML and pass to Java
+        command: ["/bin/sh", "-c"]
         args:
-          - "--broker"
-          - "$(KAFKA_BROKER)"
-          - "--input-topic"
-          - "$(INPUT_TOPIC)"
-          - "--output-topic"
-          - "$(OUTPUT_TOPIC)"
-          - "--app-name"
-          - "$(APP_NAME)"
+          - |
+            # Extract values from config.yaml
+            BROKER=$(grep -A 1 "bootstrap_servers:" /app/config/config.yaml | head -1 | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
+            INPUT=$(grep "raw_trade:" /app/config/config.yaml | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
+            OUTPUT=$(grep "flattened_trade:" /app/config/config.yaml | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
 
-        # Environment variables from ConfigMap
-        envFrom:
-        - configMapRef:
-            name: kstreams-flatten-config
+            echo "Starting KStreams with config from config.yaml:"
+            echo "  Broker: $BROKER"
+            echo "  Input Topic: $INPUT"
+            echo "  Output Topic: $OUTPUT"
+
+            # Run Java app with extracted values
+            java -jar app.jar \
+              --broker "$BROKER" \
+              --input-topic "$INPUT" \
+              --output-topic "$OUTPUT" \
+              --app-name "kstreams-flatten-app"
+
+        # Volume mounts for config file
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config/config.yaml
+          subPath: config.yaml
 
         # Resource limits and requests
         resources:
@@ -89,6 +87,12 @@ spec:
 
       # Restart policy
       restartPolicy: Always
+
+      # Volumes
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-config
 
       # Service account (if needed for RBAC)
       # serviceAccountName: kstreams-flatten-sa

@@ -189,6 +189,12 @@ build_and_deploy_kstreams() {
 
     log_info "✓ KStreams image built successfully."
 
+    # Create ConfigMap in kafka namespace for KStreams
+    log_info "Creating ConfigMap in kafka namespace..."
+    kubectl create configmap app-config \
+        --from-file=config.yaml="$PROJECT_DIR/config/config.yaml" \
+        -n kafka >> "$LOG_FILE" 2>&1 || true
+
     # Deploy KStreams application
     log_info "Deploying KStreams application..."
     if ! kubectl apply -f "$PROJECT_DIR/transform/Kstreams/k8s/deployment.yaml" >> "$LOG_FILE" 2>&1; then
@@ -210,7 +216,7 @@ deploy_websocket_extractor() {
     fi
 
     # Check if deployment already exists
-    if kubectl get deployment websocket-extractor -n default >/dev/null 2>&1; then
+    if kubectl get deployment websocket-extractor -n kafka >/dev/null 2>&1; then
         log_info "WebSocket extractor already exists, skipping."
         touch "$STATE_DIR/extractor_deployed"
         return 0
@@ -226,14 +232,18 @@ deploy_websocket_extractor() {
 
     log_info "Deploying WebSocket extractor..."
 
-    # Create ConfigMap and Secret
-    log_info "Creating Kubernetes ConfigMap and Secret..."
+    # Create ConfigMap and Secret in kafka namespace
+    log_info "Creating Kubernetes ConfigMap and Secret in kafka namespace..."
     kubectl create configmap app-config \
-        --from-file=config.yaml="$PROJECT_DIR/config/config.yaml" >> "$LOG_FILE" 2>&1 || true
+        --from-file=config.yaml="$PROJECT_DIR/config/config.yaml" \
+        -n kafka \
+        --dry-run=client -o yaml | kubectl apply -f - >> "$LOG_FILE" 2>&1
 
     kubectl create secret generic alpaca-creds \
         --from-literal=ALPACA_KEY="$ALPACA_KEY" \
-        --from-literal=ALPACA_SECRET="$ALPACA_SECRET" >> "$LOG_FILE" 2>&1 || true
+        --from-literal=ALPACA_SECRET="$ALPACA_SECRET" \
+        -n kafka \
+        --dry-run=client -o yaml | kubectl apply -f - >> "$LOG_FILE" 2>&1
 
     # Build extractor image
     log_info "Building WebSocket extractor image..."
@@ -285,7 +295,7 @@ main() {
     log_info "Deployment Status:"
     log_info "  KStreams:  kubectl get pods -n kafka -l app=kstreams-flatten"
     if [ -n "$ALPACA_KEY" ]; then
-        log_info "  Extractor: kubectl get pods -l app=websocket-extractor"
+        log_info "  Extractor: kubectl get pods -n kafka -l app=websocket-extractor"
     fi
     log_info ""
     log_info "Access Information:"
