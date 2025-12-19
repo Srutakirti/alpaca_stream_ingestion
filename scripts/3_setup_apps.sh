@@ -103,13 +103,16 @@ setup_infrastructure_resources() {
 
     log_info "Creating Kafka topics and Pinot schema/table..."
     log_info "Running setup_infrastructure.py..."
+    log_info ""
 
-    if ! uv run "$PROJECT_DIR/scripts/setup_infrastructure.py" >> "$LOG_FILE" 2>&1; then
+    # Run setup script with output to both stdout and log file
+    if ! uv run "$PROJECT_DIR/scripts/setup_infrastructure.py" 2>&1 | tee -a "$LOG_FILE"; then
+        log_error ""
         log_error "Failed to setup infrastructure resources! Check log: $LOG_FILE"
-        log_error "Last 20 lines of log:"
-        tail -n 20 "$LOG_FILE" >&2
         exit 1
     fi
+
+    log_info ""
 
     # Create marker
     touch "$STATE_DIR/infra_resources_setup"
@@ -295,7 +298,7 @@ main() {
     log_info "Deployment Status:"
     log_info "  KStreams:  kubectl get pods -n kafka -l app=kstreams-flatten"
     if [ -n "$ALPACA_KEY" ]; then
-        log_info "  Extractor: kubectl get pods -n kafka -l app=websocket-extractor"
+        log_info "  Extractor: kubectl get pods -n kafka -l app=ws-scraper"
     fi
     log_info ""
     log_info "Access Information:"

@@ -29,8 +29,8 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - |
-            # Extract values from config.yaml
-            BROKER=$(grep -A 1 "bootstrap_servers:" /app/config/config.yaml | head -1 | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
+            # Extract values from config.yaml (excluding commented lines)
+            BROKER=$(grep -v "^[[:space:]]*#" /app/config/config.yaml | grep "bootstrap_servers:" | head -1 | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
             INPUT=$(grep "raw_trade:" /app/config/config.yaml | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
             OUTPUT=$(grep "flattened_trade:" /app/config/config.yaml | sed 's/.*: "\(.*\)"/\1/' | tr -d '"')
 
