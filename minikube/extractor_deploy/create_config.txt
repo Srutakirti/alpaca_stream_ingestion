@@ -1,4 +1,0 @@
-##both the config and secrets are created using kubectl
-secrete created alpaca-creds
-kubectl create configmap app-config \
-  --from-file=config.yaml=config/config.yaml

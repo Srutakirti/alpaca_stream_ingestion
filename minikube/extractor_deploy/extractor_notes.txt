@@ -1,5 +1,0 @@
-run command ins create_config.txt and create_secret.txt
-
-package the app in extract/app , run the docker build withing extract/app
-and remeber to use minikube docker daemon - eval $(minikube docker-env), match the tag with the tag in the minikube/extractor_deploy/extractor_Deploy.yaml
-

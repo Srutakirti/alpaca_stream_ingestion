@@ -1,9 +1,0 @@
-Deploy strimzi
-kubectl create namespace kafka
-##below is the opearator downlaoded yaml is present in the repi
-kubectl create -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml -n kafka
-
-Kafka
-in kafka deploy yaml for strimzi have mentioned the node port for accessing externally
-
-the deploy_kafka.sh should setup the kakfa on minikube
