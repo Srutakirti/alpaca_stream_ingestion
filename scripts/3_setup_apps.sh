@@ -260,7 +260,7 @@ deploy_websocket_extractor() {
 
     # Deploy extractor
     log_info "Deploying WebSocket extractor pod..."
-    if ! kubectl apply -f "$PROJECT_DIR/minikube/extractor_deploy/extractor_deploy.yaml" >> "$LOG_FILE" 2>&1; then
+    if ! kubectl apply -f "$PROJECT_DIR/app/extractor_deploy.yaml" >> "$LOG_FILE" 2>&1; then
         log_error "Failed to deploy WebSocket extractor! Check log: $LOG_FILE"
         exit 1
     fi
