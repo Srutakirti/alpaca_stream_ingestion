@@ -1,8 +1,9 @@
 #!/bin/bash
 ###############################################################################
-# Part 1: Install Dependencies
+# Part 1: Install Dependencies (Config-Driven Version)
 #
 # Installs all system-level dependencies required for the data engineering stack.
+# Reads all configuration from config/config.yaml
 #
 # Components installed:
 #   - Docker CE (container runtime)
@@ -15,6 +16,7 @@
 # Prerequisites:
 #   - Ubuntu Linux
 #   - sudo access
+#   - config/config.yaml with dependencies, directories, and minikube sections
 #
 # Exit codes:
 #   0 - Success
@@ -22,35 +24,59 @@
 #   3 - Docker group needs activation (restart shell required)
 #
 # Usage:
-#   ./scripts/1_install_dependencies.sh
+#   ./scripts/1_install_dependencies_new.sh
 ###############################################################################
 
 set -e  # Exit on error
 
 # ============================================================================
+# YQ INSTALLATION
+# ============================================================================
+
+ensure_yq_installed() {
+    # Check if yq is already available
+    if command -v yq >/dev/null 2>&1; then
+        return 0
+    fi
+
+    log_info "yq not found, installing..."
+
+    # Create ~/.local/bin if it doesn't exist
+    mkdir -p "$HOME/.local/bin"
+
+    # Download yq binary
+    local YQ_VERSION="v4.44.1"
+    local YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+
+    if ! curl -L "$YQ_URL" -o "$HOME/.local/bin/yq" >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to download yq from $YQ_URL"
+        log_error "Please install yq manually:"
+        log_error "  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+        log_error "  sudo chmod +x /usr/local/bin/yq"
+        exit 1
+    fi
+
+    chmod +x "$HOME/.local/bin/yq"
+
+    # Add to PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+
+    log_info "yq installed successfully to ~/.local/bin/yq"
+}
+
+# ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-# Version Configuration
-DOCKER_VERSION="5:28.5.1-1~ubuntu.25.10~questing"
-MINIKUBE_VERSION="v1.36.0"
-KUBECTL_VERSION="v1.34.0"
-HELM_VERSION="v3.19.0"
-JAVA_VERSION="openjdk-17-jdk"
-UV_VERSION="0.9.2"
-
-# Directory Configuration
-STATE_DIR="$HOME/.alpaca_infra_state"
-MINIKUBE_MOUNT_DIR="/nvmewd/minikube_mount"
-MINIKUBE_MOUNT_MINIO="$MINIKUBE_MOUNT_DIR/minio"
-MINIKUBE_MOUNT_SHR="$MINIKUBE_MOUNT_DIR/shr"
-
-# Minikube Resource Configuration
-MINIKUBE_CPU=8
-MINIKUBE_MEMORY=14999  # in MB
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG_FILE="$PROJECT_ROOT/config/config.yaml"
 
 # Logging Configuration
 LOG_FILE="/tmp/alpaca_setup_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -59,23 +85,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # ============================================================================
-# LOGGING FUNCTIONS
+# LOGGING FUNCTIONS (defined early for use in ensure_yq_installed)
 # ============================================================================
-
-setup_logging() {
-    mkdir -p "$(dirname "$LOG_FILE")"
-    touch "$LOG_FILE"
-
-    {
-        echo "========================================="
-        echo "Part 1: Install Dependencies"
-        echo "Started: $(date)"
-        echo "User: $USER"
-        echo "Hostname: $(hostname)"
-        echo "========================================="
-        echo ""
-    } >> "$LOG_FILE"
-}
 
 log_info() {
     local msg="$1"
@@ -96,6 +107,129 @@ log_error() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${RED}[ERROR]${NC} $msg"
     echo "[$timestamp] [ERROR] $msg" >> "$LOG_FILE"
+}
+
+# ============================================================================
+# YAML PARSING FUNCTIONS
+# ============================================================================
+
+get_yaml_value() {
+    local path="$1"         # e.g., ".dependencies.docker_version" or ".minikube.cpu"
+    local config_file="$2"
+
+    yq eval "$path" "$config_file" 2>/dev/null
+}
+
+# Verify config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "ERROR: Config file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+# Ensure yq is installed before parsing YAML
+ensure_yq_installed
+
+# Version Configuration - Read from YAML
+DOCKER_VERSION=$(get_yaml_value ".dependencies.docker_version" "$CONFIG_FILE")
+MINIKUBE_VERSION=$(get_yaml_value ".dependencies.minikube_version" "$CONFIG_FILE")
+KUBECTL_VERSION=$(get_yaml_value ".dependencies.kubectl_version" "$CONFIG_FILE")
+HELM_VERSION=$(get_yaml_value ".dependencies.helm_version" "$CONFIG_FILE")
+JAVA_VERSION=$(get_yaml_value ".dependencies.java_version" "$CONFIG_FILE")
+UV_VERSION=$(get_yaml_value ".dependencies.uv_version" "$CONFIG_FILE")
+
+# Directory Configuration - Read from YAML
+STATE_DIR_RAW=$(get_yaml_value ".directories.state_dir" "$CONFIG_FILE")
+MINIKUBE_MOUNT_DIR=$(get_yaml_value ".directories.minikube_mount_dir" "$CONFIG_FILE")
+MINIKUBE_MOUNT_MINIO=$(get_yaml_value ".directories.minikube_mount_minio" "$CONFIG_FILE")
+MINIKUBE_MOUNT_SHR=$(get_yaml_value ".directories.minikube_mount_shr" "$CONFIG_FILE")
+
+# Expand $HOME in STATE_DIR
+STATE_DIR="${STATE_DIR_RAW/\$HOME/$HOME}"
+
+# Minikube Resource Configuration - Read from YAML
+MINIKUBE_CPU=$(get_yaml_value ".minikube.cpu" "$CONFIG_FILE")
+MINIKUBE_MEMORY=$(get_yaml_value ".minikube.memory" "$CONFIG_FILE")
+
+# Verify all values were loaded
+if [ -z "$DOCKER_VERSION" ] || [ -z "$MINIKUBE_VERSION" ] || [ -z "$KUBECTL_VERSION" ] || \
+   [ -z "$HELM_VERSION" ] || [ -z "$JAVA_VERSION" ] || [ -z "$UV_VERSION" ] || \
+   [ -z "$STATE_DIR" ] || [ -z "$MINIKUBE_MOUNT_DIR" ] || \
+   [ -z "$MINIKUBE_CPU" ] || [ -z "$MINIKUBE_MEMORY" ]; then
+    echo "ERROR: Failed to load all configuration from $CONFIG_FILE"
+    echo "Loaded values:"
+    echo "  Docker: $DOCKER_VERSION"
+    echo "  Minikube: $MINIKUBE_VERSION"
+    echo "  Kubectl: $KUBECTL_VERSION"
+    echo "  Helm: $HELM_VERSION"
+    echo "  Java: $JAVA_VERSION"
+    echo "  UV: $UV_VERSION"
+    echo "  State Dir: $STATE_DIR"
+    echo "  Minikube Mount Dir: $MINIKUBE_MOUNT_DIR"
+    echo "  Minikube CPU: $MINIKUBE_CPU"
+    echo "  Minikube Memory: $MINIKUBE_MEMORY"
+    exit 1
+fi
+
+# Print loaded configuration
+echo ""
+echo "========================================="
+echo "Configuration Loaded from: $CONFIG_FILE"
+echo "========================================="
+echo ""
+echo "Dependency Versions:"
+echo "  Docker:    $DOCKER_VERSION"
+echo "  Minikube:  $MINIKUBE_VERSION"
+echo "  Kubectl:   $KUBECTL_VERSION"
+echo "  Helm:      $HELM_VERSION"
+echo "  Java:      $JAVA_VERSION"
+echo "  UV:        $UV_VERSION"
+echo ""
+echo "Directory Configuration:"
+echo "  State Dir:              $STATE_DIR"
+echo "  Minikube Mount Dir:     $MINIKUBE_MOUNT_DIR"
+echo "  Minikube Mount MinIO:   $MINIKUBE_MOUNT_MINIO"
+echo "  Minikube Mount SHR:     $MINIKUBE_MOUNT_SHR"
+echo ""
+echo "Minikube Resources:"
+echo "  CPU:     $MINIKUBE_CPU"
+echo "  Memory:  ${MINIKUBE_MEMORY}MB"
+echo ""
+echo "========================================="
+echo ""
+
+# ============================================================================
+# SETUP LOGGING
+# ============================================================================
+
+setup_logging() {
+    {
+        echo "========================================="
+        echo "Part 1: Install Dependencies (Config-Driven)"
+        echo "Started: $(date)"
+        echo "User: $USER"
+        echo "Hostname: $(hostname)"
+        echo "Config file: $CONFIG_FILE"
+        echo "========================================="
+        echo ""
+        echo "Dependency Versions:"
+        echo "  Docker: $DOCKER_VERSION"
+        echo "  Minikube: $MINIKUBE_VERSION"
+        echo "  Kubectl: $KUBECTL_VERSION"
+        echo "  Helm: $HELM_VERSION"
+        echo "  Java: $JAVA_VERSION"
+        echo "  UV: $UV_VERSION"
+        echo ""
+        echo "Directory Configuration:"
+        echo "  State Dir: $STATE_DIR"
+        echo "  Minikube Mount Dir: $MINIKUBE_MOUNT_DIR"
+        echo "  Minikube Mount MinIO: $MINIKUBE_MOUNT_MINIO"
+        echo "  Minikube Mount SHR: $MINIKUBE_MOUNT_SHR"
+        echo ""
+        echo "Minikube Resources:"
+        echo "  CPU: $MINIKUBE_CPU"
+        echo "  Memory: ${MINIKUBE_MEMORY}MB"
+        echo ""
+    } >> "$LOG_FILE"
 }
 
 # ============================================================================
@@ -368,7 +502,22 @@ install_java() {
 main() {
     log_info "========================================="
     log_info "Part 1: Installing Dependencies"
+    log_info "Config-Driven Version"
     log_info "========================================="
+    log_info ""
+    log_info "Configuration loaded from: $CONFIG_FILE"
+    log_info ""
+    log_info "Dependency Versions:"
+    log_info "  Docker: $DOCKER_VERSION"
+    log_info "  Minikube: $MINIKUBE_VERSION"
+    log_info "  Kubectl: $KUBECTL_VERSION"
+    log_info "  Helm: $HELM_VERSION"
+    log_info "  Java: $JAVA_VERSION"
+    log_info "  UV: $UV_VERSION"
+    log_info ""
+    log_info "Minikube Resources:"
+    log_info "  CPU: $MINIKUBE_CPU"
+    log_info "  Memory: ${MINIKUBE_MEMORY}MB"
     log_info ""
 
     # Install all components

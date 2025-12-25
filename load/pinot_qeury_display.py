@@ -44,7 +44,7 @@ def format_large_number(x):
 
 def main():
     parser = argparse.ArgumentParser(description='Query Pinot table continuously')
-    parser.add_argument('--url', default='http://localhost:9000', help='Pinot controller URL')
+    parser.add_argument('--url', default='http://192.168.49.2:30697', help='Pinot controller URL')
     #parser.add_argument('--query', required=True, help='SQL query to execute')
     parser.add_argument('--interval', type=int, default=60, help='Query interval in seconds')
     args = parser.parse_args()
@@ -55,9 +55,9 @@ def main():
     # order by traded_volume desc
     # limit 5
     # """
-
+            
     query = """
-    select count(*) as total_events from stock_ticks_latest_1
+    select count(*) as total_events from stock_ticks_latest_2
     """
 
     print(f"Starting continuous query with {args.interval} second interval...")

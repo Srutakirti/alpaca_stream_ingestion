@@ -1,0 +1,41 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: kafka-connect-cluster
+  namespace: kafka
+  annotations:
+    # Enable KafkaConnector CRs
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 3.9.0
+  replicas: 1
+  bootstrapServers: my-cluster-kafka-bootstrap:9092
+
+  # Use pre-built image with Aiven S3 connector
+  image: localhost:5000/kafka-connect-s3:latest
+
+  # Resource allocation
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 500m
+    limits:
+      memory: 2Gi
+      cpu: 1000m
+
+  # Kafka Connect worker configuration
+  config:
+    group.id: kafka-connect-cluster
+    offset.storage.topic: connect-cluster-offsets
+    config.storage.topic: connect-cluster-configs
+    status.storage.topic: connect-cluster-status
+
+    # Replication factors for internal topics
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+
+    # Converters - important for handling JSON data
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false

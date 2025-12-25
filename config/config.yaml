@@ -63,3 +63,24 @@ minio:
     size: 100Gi
     path: /mnt/minio  # Local mount path on Minikube node
   browser: "on"
+
+# System dependencies configuration
+dependencies:
+  docker_version: "5:28.5.1-1~ubuntu.25.10~questing"
+  minikube_version: "v1.36.0"
+  kubectl_version: "v1.34.0"
+  helm_version: "v3.19.0"
+  java_version: "openjdk-17-jdk"
+  uv_version: "0.9.2"
+
+# Installation directory configuration
+directories:
+  state_dir: "$HOME/.alpaca_infra_state"
+  minikube_mount_dir: "/nvmewd/minikube_mount"
+  minikube_mount_minio: "/nvmewd/minikube_mount/minio"
+  minikube_mount_shr: "/nvmewd/minikube_mount/shr"
+
+# Minikube resource configuration
+minikube:
+  cpu: 8
+  memory: 14999  # in MB

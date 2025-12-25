@@ -9,7 +9,7 @@ from kafka.errors import KafkaError
 SOURCE_FILE_PATH = '/nvmewd/data/iex/bars.ndjson'
 
 # 2. Kafka topic to send the data to.
-KAFKA_TOPIC = 'test-iex'
+KAFKA_TOPIC = 'iex-topic-1'
 
 # 3. Kafka bootstrap servers. Replace with your Kafka broker(s).
 KAFKA_BOOTSTRAP_SERVERS = ['192.168.49.2:32100']
@@ -18,7 +18,7 @@ KAFKA_BOOTSTRAP_SERVERS = ['192.168.49.2:32100']
 BATCH_SIZE = 100
 
 # 5. The delay in seconds after sending each batch. Set to 0 for no delay.
-DELAY_SECONDS = 5
+DELAY_SECONDS = 10
 
 # --- Logging Setup ---
 logging.basicConfig(
@@ -27,10 +27,36 @@ logging.basicConfig(
 )
 
 
+def transform_to_alpaca_format(record):
+    """
+    Transform a record to Alpaca IEX bar format.
+    Ensures 'symbol' field is converted to 'S' and 'T' type is added.
+    """
+    # If already in perfect Alpaca format (has 'S' and 'T', no 'symbol'), return as-is
+    if 'S' in record and 'T' in record and 'symbol' not in record:
+        return record
+
+    # Create new record in Alpaca format
+    alpaca_record = {}
+
+    # Add type field
+    alpaca_record["T"] = record.get("T", "b")
+
+    # Add symbol field (from 'symbol' or 'S')
+    alpaca_record["S"] = record.get("symbol") or record.get("S", "")
+
+    # Copy all other fields, excluding 'symbol'
+    for key, value in record.items():
+        if key not in ["symbol", "S", "T"]:
+            alpaca_record[key] = value
+
+    return alpaca_record
+
+
 def send_data_to_kafka(producer, file_path, topic, batch_size, delay):
     """
     Reads a file line by line, batches the data as a JSON array,
-    and sends it to a Kafka topic.
+    transforms to Alpaca format, and sends it to a Kafka topic.
     """
     batch = []
     lines_processed = 0
@@ -45,8 +71,10 @@ def send_data_to_kafka(producer, file_path, topic, batch_size, delay):
                     continue
 
                 try:
-                    # Each line is a JSON document, add it to our batch list
-                    batch.append(json.loads(line))
+                    # Parse JSON and transform to Alpaca format
+                    record = json.loads(line)
+                    alpaca_record = transform_to_alpaca_format(record)
+                    batch.append(alpaca_record)
                     lines_processed += 1
                 except json.JSONDecodeError:
                     logging.warning(f"Skipping invalid JSON line: {line}")

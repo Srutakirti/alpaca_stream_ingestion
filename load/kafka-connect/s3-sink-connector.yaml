@@ -1,0 +1,41 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: s3-sink-raw
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-connect-cluster
+spec:
+  class: io.aiven.kafka.connect.s3.AivenKafkaConnectS3SinkConnector
+  tasksMax: 2
+  config:
+    # Kafka topic to consume from
+    topics: iex-topic-1
+
+    # S3/MinIO Configuration
+    aws.s3.bucket.name: archive
+    aws.s3.endpoint: http://minio-single-hl.minio-tenant.svc:9000
+    aws.s3.region: us-east-1
+
+    # Authentication
+    aws.access.key.id: minio
+    aws.secret.access.key: minio123
+
+    # File format - JSON with GZIP compression
+    format.output.fields: value
+    format.output.fields.value.encoding: none
+    format.output.type: jsonl
+    file.compression.type: gzip
+
+    # Partitioning - time-based
+    file.name.template: "{{topic}}-{{partition}}-{{start_offset}}.jsonl.gz"
+
+    # Flush settings - when to write files
+    # Write after 1000 records OR 60 seconds (whichever comes first)
+    file.max.records: 1000
+    kafka.retry.backoff.ms: 60000
+
+    # Key and value converters
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false

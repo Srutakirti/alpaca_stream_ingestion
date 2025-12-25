@@ -1,8 +1,9 @@
 #!/bin/bash
 ###############################################################################
-# Part 3: Setup Applications
+# Part 3: Setup Applications (Config-Driven Version)
 #
 # Bootstraps application-level resources and deploys processing applications.
+# Reads all configuration from config/config.yaml
 #
 # Components setup:
 #   - Kafka topics (from config.yaml)
@@ -21,24 +22,62 @@
 #
 # Usage:
 #   # Without extractor
-#   ./scripts/3_setup_apps.sh
+#   ./scripts/3_setup_apps_new.sh
 #
 #   # With extractor
-#   ALPACA_KEY=xxx ALPACA_SECRET=yyy ./scripts/3_setup_apps.sh
+#   ALPACA_KEY=xxx ALPACA_SECRET=yyy ./scripts/3_setup_apps_new.sh
 ###############################################################################
 
 set -e  # Exit on error
 
 # ============================================================================
+# YQ INSTALLATION
+# ============================================================================
+
+ensure_yq_installed() {
+    # Check if yq is already available
+    if command -v yq >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "yq not found, installing..."
+
+    # Create ~/.local/bin if it doesn't exist
+    mkdir -p "$HOME/.local/bin"
+
+    # Download yq binary
+    local YQ_VERSION="v4.44.1"
+    local YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+
+    if ! curl -L "$YQ_URL" -o "$HOME/.local/bin/yq" 2>/dev/null; then
+        echo "ERROR: Failed to download yq from $YQ_URL"
+        echo "Please install yq manually:"
+        echo "  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+        echo "  sudo chmod +x /usr/local/bin/yq"
+        exit 1
+    fi
+
+    chmod +x "$HOME/.local/bin/yq"
+
+    # Add to PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+
+    echo "yq installed successfully to ~/.local/bin/yq"
+}
+
+# ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-# Directory Configuration
-STATE_DIR="$HOME/.alpaca_infra_state"
-PROJECT_DIR="$HOME/alpaca_stream_ingestion"
+# Determine script location and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG_FILE="$PROJECT_ROOT/config/config.yaml"
 
 # Logging Configuration
 LOG_FILE="/tmp/alpaca_setup_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -46,24 +85,15 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# ============================================================================
-# LOGGING FUNCTIONS
-# ============================================================================
+# Verify config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "ERROR: Config file not found: $CONFIG_FILE"
+    exit 1
+fi
 
-setup_logging() {
-    mkdir -p "$(dirname "$LOG_FILE")"
-    touch "$LOG_FILE"
-
-    {
-        echo "========================================="
-        echo "Part 3: Setup Applications"
-        echo "Started: $(date)"
-        echo "User: $USER"
-        echo "Hostname: $(hostname)"
-        echo "========================================="
-        echo ""
-    } >> "$LOG_FILE"
-}
+# ============================================================================
+# LOGGING FUNCTIONS (defined early for use in ensure_yq_installed)
+# ============================================================================
 
 log_info() {
     local msg="$1"
@@ -88,6 +118,77 @@ log_error() {
 
 check_binary_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# ============================================================================
+# YAML PARSING FUNCTIONS
+# ============================================================================
+
+get_yaml_value() {
+    local path="$1"         # e.g., ".directories.state_dir"
+    local config_file="$2"
+
+    yq eval "$path" "$config_file" 2>/dev/null
+}
+
+# Ensure yq is installed before parsing YAML
+ensure_yq_installed
+
+# Directory Configuration - Read from YAML
+STATE_DIR_RAW=$(get_yaml_value ".directories.state_dir" "$CONFIG_FILE")
+MINIKUBE_IP=$(get_yaml_value ".minio.minikube_ip" "$CONFIG_FILE")
+
+# Expand $HOME in STATE_DIR
+STATE_DIR="${STATE_DIR_RAW/\$HOME/$HOME}"
+
+# Project directory is the root of the repo
+PROJECT_DIR="$PROJECT_ROOT"
+
+# Verify values were loaded
+if [ -z "$STATE_DIR" ]; then
+    echo "ERROR: Failed to load configuration from $CONFIG_FILE"
+    echo "Loaded values:"
+    echo "  State Dir: $STATE_DIR"
+    exit 1
+fi
+
+# Print loaded configuration
+echo ""
+echo "========================================="
+echo "Configuration Loaded from: $CONFIG_FILE"
+echo "========================================="
+echo ""
+echo "Directory Configuration:"
+echo "  State Dir:              $STATE_DIR"
+echo "  Project Dir:            $PROJECT_DIR"
+echo ""
+echo "MinIO Configuration:"
+echo "  Minikube IP (from config): $MINIKUBE_IP"
+echo ""
+echo "Note: Dynamic Minikube IP will be detected at runtime"
+echo "========================================="
+echo ""
+
+# ============================================================================
+# SETUP LOGGING
+# ============================================================================
+
+setup_logging() {
+    {
+        echo "========================================="
+        echo "Part 3: Setup Applications (Config-Driven)"
+        echo "Started: $(date)"
+        echo "User: $USER"
+        echo "Hostname: $(hostname)"
+        echo "Config file: $CONFIG_FILE"
+        echo "========================================="
+        echo ""
+        echo "Configuration:"
+        echo "  State Dir: $STATE_DIR"
+        echo "  Project Dir: $PROJECT_DIR"
+        echo "  Minikube IP: $MINIKUBE_IP"
+        echo ""
+    } >> "$LOG_FILE"
 }
 
 # ============================================================================
@@ -143,12 +244,12 @@ install_minio_client() {
         sudo mv /tmp/mc /usr/local/bin
     fi
 
-    # Get Minikube IP dynamically
-    MINIKUBE_IP=$(minikube ip 2>/dev/null || echo "192.168.49.2")
+    # Get Minikube IP dynamically (fall back to config value)
+    local DYNAMIC_IP=$(minikube ip 2>/dev/null || echo "$MINIKUBE_IP")
 
     # Configure S3 alias
     log_info "Configuring MinIO S3 alias..."
-    mc alias set s3 "http://minio-api.${MINIKUBE_IP}.nip.io:80" minio minio123 >> "$LOG_FILE" 2>&1
+    mc alias set s3 "http://minio-api.${DYNAMIC_IP}.nip.io:80" minio minio123 >> "$LOG_FILE" 2>&1
 
     # Create buckets
     log_info "Creating S3 buckets..."
@@ -229,7 +330,7 @@ deploy_websocket_extractor() {
     if [ -z "$ALPACA_KEY" ] || [ -z "$ALPACA_SECRET" ]; then
         log_warn "ALPACA_KEY and ALPACA_SECRET not set, skipping extractor deployment."
         log_warn "To deploy extractor later, run:"
-        log_warn "  ALPACA_KEY=xxx ALPACA_SECRET=yyy ./scripts/3_setup_apps.sh"
+        log_warn "  ALPACA_KEY=xxx ALPACA_SECRET=yyy ./scripts/3_setup_apps_new.sh"
         return 0
     fi
 
@@ -278,7 +379,10 @@ deploy_websocket_extractor() {
 main() {
     log_info "========================================="
     log_info "Part 3: Setting Up Applications"
+    log_info "Config-Driven Version"
     log_info "========================================="
+    log_info ""
+    log_info "Configuration loaded from: $CONFIG_FILE"
     log_info ""
 
     # Change to project directory
@@ -302,10 +406,10 @@ main() {
     fi
     log_info ""
     log_info "Access Information:"
-    MINIKUBE_IP=$(minikube ip 2>/dev/null || echo "192.168.49.2")
-    log_info "  Kafka:     ${MINIKUBE_IP}:32100"
-    log_info "  MinIO API: http://minio-api.${MINIKUBE_IP}.nip.io"
-    log_info "  MinIO UI:  http://minio.${MINIKUBE_IP}.nip.io"
+    local DYNAMIC_IP=$(minikube ip 2>/dev/null || echo "$MINIKUBE_IP")
+    log_info "  Kafka:     ${DYNAMIC_IP}:32100"
+    log_info "  MinIO API: http://minio-api.${DYNAMIC_IP}.nip.io"
+    log_info "  MinIO UI:  http://minio.${DYNAMIC_IP}.nip.io"
     log_info "  Pinot:     kubectl port-forward -n pinot svc/pinot-pinot-chart-controller 9000:9000"
     log_info ""
     log_info "Log file: $LOG_FILE"
