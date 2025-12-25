@@ -379,11 +379,7 @@ deploy_websocket_extractor() {
 main() {
     log_info "========================================="
     log_info "Part 3: Setting Up Applications"
-    log_info "Config-Driven Version"
     log_info "========================================="
-    log_info ""
-    log_info "Configuration loaded from: $CONFIG_FILE"
-    log_info ""
 
     # Change to project directory
     cd "$PROJECT_DIR"

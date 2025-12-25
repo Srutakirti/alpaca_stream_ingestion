@@ -170,33 +170,6 @@ if [ -z "$DOCKER_VERSION" ] || [ -z "$MINIKUBE_VERSION" ] || [ -z "$KUBECTL_VERS
     exit 1
 fi
 
-# Print loaded configuration
-echo ""
-echo "========================================="
-echo "Configuration Loaded from: $CONFIG_FILE"
-echo "========================================="
-echo ""
-echo "Dependency Versions:"
-echo "  Docker:    $DOCKER_VERSION"
-echo "  Minikube:  $MINIKUBE_VERSION"
-echo "  Kubectl:   $KUBECTL_VERSION"
-echo "  Helm:      $HELM_VERSION"
-echo "  Java:      $JAVA_VERSION"
-echo "  UV:        $UV_VERSION"
-echo ""
-echo "Directory Configuration:"
-echo "  State Dir:              $STATE_DIR"
-echo "  Minikube Mount Dir:     $MINIKUBE_MOUNT_DIR"
-echo "  Minikube Mount MinIO:   $MINIKUBE_MOUNT_MINIO"
-echo "  Minikube Mount SHR:     $MINIKUBE_MOUNT_SHR"
-echo ""
-echo "Minikube Resources:"
-echo "  CPU:     $MINIKUBE_CPU"
-echo "  Memory:  ${MINIKUBE_MEMORY}MB"
-echo ""
-echo "========================================="
-echo ""
-
 # ============================================================================
 # SETUP LOGGING
 # ============================================================================
