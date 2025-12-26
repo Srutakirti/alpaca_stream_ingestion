@@ -134,10 +134,11 @@ def main():
     """
 
     # Sample records query - get latest 10 records
+    # Schema columns: S (symbol), o/h/l/c (prices), v (volume), timestamp
     records_query = """
-    select S as symbol, P as price, V as volume, T as timestamp_ms
+    select S as symbol, o as open, h as high, l as low, c as close, v as volume, timestamp as timestamp_ms
     from stock_ticks_latest_2
-    order by T desc
+    order by timestamp desc
     limit 10
     """
 
@@ -181,13 +182,18 @@ def main():
 
                 # Format timestamp column to readable format
                 if 'timestamp_ms' in records_df.columns:
-                    records_df['timestamp'] = pd.to_datetime(records_df['timestamp_ms'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
-                    records_df = records_df[['symbol', 'price', 'volume', 'timestamp']]
+                    records_df['time'] = pd.to_datetime(records_df['timestamp_ms'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    # Reorder columns for better display
+                    records_df = records_df[['symbol', 'open', 'high', 'low', 'close', 'volume', 'time']]
 
-                # Format numbers with commas for readability
-                for col in records_df.columns:
-                    if col != 'timestamp' and col != 'symbol' and pd.api.types.is_numeric_dtype(records_df[col]):
-                        records_df[col] = records_df[col].apply(format_large_number)
+                # Format numbers with commas for readability (only for volume)
+                if 'volume' in records_df.columns:
+                    records_df['volume'] = records_df['volume'].apply(format_large_number)
+
+                # Round price columns to 2 decimal places
+                for col in ['open', 'high', 'low', 'close']:
+                    if col in records_df.columns:
+                        records_df[col] = records_df[col].round(2)
 
                 print(tabulate(records_df, headers='keys', tablefmt='psql', showindex=False))
             else:
