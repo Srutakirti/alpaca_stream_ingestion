@@ -143,7 +143,7 @@ def main():
     # Schema columns: S (symbol), o/h/l/c (prices), v (volume), timestamp
     # Note: 'timestamp' is a reserved keyword, use backticks
     records_query = """
-    select S, o, h, l, c, v, `timestamp`
+    select S, o, h, l, c, v, "timestamp"
     from stock_ticks_latest_2
     order by "timestamp" desc
     limit 10
