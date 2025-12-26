@@ -145,7 +145,7 @@ def main():
     records_query = """
     select S, o, h, l, c, v, `timestamp`
     from stock_ticks_latest_2
-    order by `timestamp` desc
+    order by "timestamp" desc
     limit 10
     """
 
