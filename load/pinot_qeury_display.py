@@ -88,20 +88,25 @@ def get_pinot_controller_url():
     print(f"Could not auto-detect Pinot controller, using default: {default_url}")
     return default_url
 
-def query_pinot(pinot_url, query):
+def query_pinot(pinot_url, query, debug=False):
     """Execute query against Pinot and return results as pandas DataFrame"""
     headers = {'Content-Type': 'application/json'}
     payload = {'sql': query}
-    
+
     try:
         response = requests.post(f"{pinot_url}/sql", headers=headers, json=payload)
         response.raise_for_status()
-        
+
         # Parse JSON response
         result = response.json()
-        
+
+        # Check for exceptions in response
+        if 'exceptions' in result and result['exceptions']:
+            if debug:
+                print(f"Query error: {result['exceptions']}")
+            return pd.DataFrame()
+
         # Convert to DataFrame
-                # Convert to DataFrame and format numbers
         if 'resultTable' in result:
             columns = result['resultTable']['dataSchema']['columnNames']
             data = result['resultTable']['rows']
@@ -112,9 +117,10 @@ def query_pinot(pinot_url, query):
                 df[col] = df[col].astype('int64')
             return df
         return pd.DataFrame()
-    
+
     except requests.exceptions.RequestException as e:
-        print(f"Error querying Pinot: {e}")
+        if debug:
+            print(f"Error querying Pinot: {e}")
         return pd.DataFrame()
 
 def format_large_number(x):
@@ -135,10 +141,10 @@ def main():
 
     # Sample records query - get latest 10 records
     # Schema columns: S (symbol), o/h/l/c (prices), v (volume), timestamp
+    # Try simple query first - just symbol and close price
     records_query = """
-    select S as symbol, o as open, h as high, l as low, c as close, v as volume, timestamp as timestamp_ms
+    select S, c, v, timestamp
     from stock_ticks_latest_2
-    order by timestamp desc
     limit 10
     """
 
@@ -174,26 +180,40 @@ def main():
                 print("No results returned")
 
             # Execute records query
-            records_df = query_pinot(pinot_url, records_query)
+            records_df = query_pinot(pinot_url, records_query, debug=True)
 
             if not records_df.empty:
                 print("\n📝 LATEST 10 RECORDS")
                 print("-" * 80)
 
                 # Format timestamp column to readable format
-                if 'timestamp_ms' in records_df.columns:
-                    records_df['time'] = pd.to_datetime(records_df['timestamp_ms'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
-                    # Reorder columns for better display
-                    records_df = records_df[['symbol', 'open', 'high', 'low', 'close', 'volume', 'time']]
+                if 'timestamp' in records_df.columns:
+                    records_df['time'] = pd.to_datetime(records_df['timestamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+
+                # Rename columns for better display
+                column_mapping = {
+                    'S': 'symbol',
+                    'c': 'close',
+                    'v': 'volume'
+                }
+                records_df = records_df.rename(columns=column_mapping)
+
+                # Select and reorder columns
+                display_cols = []
+                for col in ['symbol', 'close', 'volume', 'time']:
+                    if col in records_df.columns:
+                        display_cols.append(col)
+
+                if display_cols:
+                    records_df = records_df[display_cols]
 
                 # Format numbers with commas for readability (only for volume)
                 if 'volume' in records_df.columns:
                     records_df['volume'] = records_df['volume'].apply(format_large_number)
 
                 # Round price columns to 2 decimal places
-                for col in ['open', 'high', 'low', 'close']:
-                    if col in records_df.columns:
-                        records_df[col] = records_df[col].round(2)
+                if 'close' in records_df.columns:
+                    records_df['close'] = records_df['close'].round(2)
 
                 print(tabulate(records_df, headers='keys', tablefmt='psql', showindex=False))
             else:
