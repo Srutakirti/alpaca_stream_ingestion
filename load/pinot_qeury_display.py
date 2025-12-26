@@ -141,10 +141,11 @@ def main():
 
     # Sample records query - get latest 10 records
     # Schema columns: S (symbol), o/h/l/c (prices), v (volume), timestamp
-    # Try simple query first - just symbol and close price
+    # Note: 'timestamp' is a reserved keyword, use backticks
     records_query = """
-    select S, c, v, timestamp
+    select S, o, h, l, c, v, `timestamp`
     from stock_ticks_latest_2
+    order by `timestamp` desc
     limit 10
     """
 
@@ -193,14 +194,17 @@ def main():
                 # Rename columns for better display
                 column_mapping = {
                     'S': 'symbol',
+                    'o': 'open',
+                    'h': 'high',
+                    'l': 'low',
                     'c': 'close',
                     'v': 'volume'
                 }
                 records_df = records_df.rename(columns=column_mapping)
 
-                # Select and reorder columns
+                # Select and reorder columns for display
                 display_cols = []
-                for col in ['symbol', 'close', 'volume', 'time']:
+                for col in ['symbol', 'open', 'high', 'low', 'close', 'volume', 'time']:
                     if col in records_df.columns:
                         display_cols.append(col)
 
@@ -212,8 +216,9 @@ def main():
                     records_df['volume'] = records_df['volume'].apply(format_large_number)
 
                 # Round price columns to 2 decimal places
-                if 'close' in records_df.columns:
-                    records_df['close'] = records_df['close'].round(2)
+                for col in ['open', 'high', 'low', 'close']:
+                    if col in records_df.columns:
+                        records_df[col] = records_df[col].round(2)
 
                 print(tabulate(records_df, headers='keys', tablefmt='psql', showindex=False))
             else:
