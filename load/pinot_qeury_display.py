@@ -4,11 +4,89 @@ import json
 import time
 from tabulate import tabulate
 import argparse
+import subprocess
 
-##pd opttions
+##pd options
 pd.set_option('display.float_format', lambda x: '%.0f' % x)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
+
+
+def get_minikube_ip():
+    """Get Minikube IP address."""
+    try:
+        result = subprocess.run(
+            ['minikube', 'ip'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def detect_pinot_controller_nodeport(namespace='pinot', service_name='pinot-pinot-chart-controller'):
+    """
+    Dynamically detect the Pinot controller NodePort by querying Kubernetes.
+
+    Returns:
+        tuple: (minikube_ip, nodeport) or (None, None) if detection fails
+    """
+    try:
+        # Get the service details as JSON
+        result = subprocess.run(
+            ['kubectl', 'get', 'svc', service_name, '-n', namespace, '-o', 'json'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode != 0:
+            return None, None
+
+        service_data = json.loads(result.stdout)
+
+        # Extract NodePort from service spec
+        if service_data['spec']['type'] == 'NodePort':
+            ports = service_data['spec']['ports']
+            if ports:
+                node_port = ports[0].get('nodePort')
+                if node_port:
+                    # Get minikube IP
+                    minikube_ip = get_minikube_ip()
+                    if minikube_ip:
+                        return minikube_ip, node_port
+                    else:
+                        return "192.168.49.2", node_port
+
+        return None, None
+
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception):
+        return None, None
+
+
+def get_pinot_controller_url():
+    """
+    Get Pinot controller URL by dynamically detecting NodePort.
+
+    Returns:
+        str: The Pinot controller URL
+    """
+    # Try to dynamically detect the NodePort
+    minikube_ip, node_port = detect_pinot_controller_nodeport()
+
+    if minikube_ip and node_port:
+        url = f"http://{minikube_ip}:{node_port}"
+        print(f"Auto-detected Pinot controller: {url}")
+        return url
+
+    # Fall back to default
+    default_url = "http://192.168.49.2:30900"
+    print(f"Could not auto-detect Pinot controller, using default: {default_url}")
+    return default_url
 
 def query_pinot(pinot_url, query):
     """Execute query against Pinot and return results as pandas DataFrame"""
@@ -44,31 +122,32 @@ def format_large_number(x):
 
 def main():
     parser = argparse.ArgumentParser(description='Query Pinot table continuously')
-    parser.add_argument('--url', default='http://192.168.49.2:30697', help='Pinot controller URL')
-    #parser.add_argument('--query', required=True, help='SQL query to execute')
     parser.add_argument('--interval', type=int, default=60, help='Query interval in seconds')
     args = parser.parse_args()
 
-    # query = """select S stock_ticker, sum(V) as traded_volume 
-    # from stock_ticks_latest_1 
+    # Auto-detect Pinot controller URL
+    pinot_url = get_pinot_controller_url()
+
+    # query = """select S stock_ticker, sum(V) as traded_volume
+    # from stock_ticks_latest_1
     # group by S
     # order by traded_volume desc
     # limit 5
     # """
-            
+
     query = """
     select count(*) as total_events from stock_ticks_latest_2
     """
 
     print(f"Starting continuous query with {args.interval} second interval...")
     print(f"Query: {query}")
-    print(f"Pinot URL: {args.url}")
+    print(f"Pinot URL: {pinot_url}")
     print("-" * 80)
 
     try:
         while True:
             # Execute query and get results as DataFrame
-            df = query_pinot(args.url, query)
+            df = query_pinot(pinot_url, query)
             
             if not df.empty:
                 # Clear screen (works on both Windows and Unix)
