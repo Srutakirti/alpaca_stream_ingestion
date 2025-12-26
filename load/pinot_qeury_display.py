@@ -128,46 +128,76 @@ def main():
     # Auto-detect Pinot controller URL
     pinot_url = get_pinot_controller_url()
 
-    # query = """select S stock_ticker, sum(V) as traded_volume
-    # from stock_ticks_latest_1
-    # group by S
-    # order by traded_volume desc
-    # limit 5
-    # """
-
-    query = """
+    # Count query
+    count_query = """
     select count(*) as total_events from stock_ticks_latest_2
     """
 
+    # Sample records query - get latest 10 records
+    records_query = """
+    select S as symbol, P as price, V as volume, T as timestamp_ms
+    from stock_ticks_latest_2
+    order by T desc
+    limit 10
+    """
+
     print(f"Starting continuous query with {args.interval} second interval...")
-    print(f"Query: {query}")
     print(f"Pinot URL: {pinot_url}")
     print("-" * 80)
 
     try:
         while True:
-            # Execute query and get results as DataFrame
-            df = query_pinot(pinot_url, query)
-            
-            if not df.empty:
-                # Clear screen (works on both Windows and Unix)
-                print("\033[H\033[J")
-                
-                # Print timestamp and query
-                print(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"Query: {query}")
+            # Clear screen (works on both Windows and Unix)
+            print("\033[H\033[J")
+
+            # Print timestamp
+            print(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("=" * 80)
+
+            # Execute count query
+            count_df = query_pinot(pinot_url, count_query)
+
+            if not count_df.empty:
+                print("\n📊 TOTAL EVENT COUNT")
                 print("-" * 80)
 
                 # Format numbers with commas for readability
-                for col in df.columns:
-                    if pd.api.types.is_numeric_dtype(df[col]):
-                        df[col] = df[col].apply(format_large_number)
-                
-                # Print DataFrame in a nice table format
-                print(tabulate(df, headers='keys', tablefmt='psql', showindex=False))
+                for col in count_df.columns:
+                    if pd.api.types.is_numeric_dtype(count_df[col]):
+                        count_df[col] = count_df[col].apply(format_large_number)
+
+                print(tabulate(count_df, headers='keys', tablefmt='psql', showindex=False))
             else:
+                print("\n📊 TOTAL EVENT COUNT")
+                print("-" * 80)
                 print("No results returned")
-            
+
+            # Execute records query
+            records_df = query_pinot(pinot_url, records_query)
+
+            if not records_df.empty:
+                print("\n📝 LATEST 10 RECORDS")
+                print("-" * 80)
+
+                # Format timestamp column to readable format
+                if 'timestamp_ms' in records_df.columns:
+                    records_df['timestamp'] = pd.to_datetime(records_df['timestamp_ms'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    records_df = records_df[['symbol', 'price', 'volume', 'timestamp']]
+
+                # Format numbers with commas for readability
+                for col in records_df.columns:
+                    if col != 'timestamp' and col != 'symbol' and pd.api.types.is_numeric_dtype(records_df[col]):
+                        records_df[col] = records_df[col].apply(format_large_number)
+
+                print(tabulate(records_df, headers='keys', tablefmt='psql', showindex=False))
+            else:
+                print("\n📝 LATEST 10 RECORDS")
+                print("-" * 80)
+                print("No results returned")
+
+            print("\n" + "=" * 80)
+            print(f"Next refresh in {args.interval} seconds... (Press Ctrl+C to stop)")
+
             time.sleep(args.interval)
 
     except KeyboardInterrupt:
