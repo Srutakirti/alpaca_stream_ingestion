@@ -1,0 +1,36 @@
+Kafka Connect has been deployed!
+
+Resources created:
+  - KafkaConnect:   kafka-connect-cluster (namespace: kafka)
+  - KafkaConnector: s3-sink-raw (namespace: kafka)
+
+Configuration:
+  Topic:        {{ .Values.kafka.topics.raw_trade }}
+  MinIO Bucket: {{ .Values.kafka_connect.s3_sink.bucket }}
+  Format:       {{ .Values.kafka_connect.s3_sink.format }}.{{ .Values.kafka_connect.s3_sink.compression }}
+
+Check deployment status:
+  kubectl get kafkaconnect -n kafka
+  kubectl get kafkaconnector -n kafka
+
+Wait for pod to be ready:
+  kubectl wait --for=condition=Ready pod/kafka-connect-cluster-connect-0 -n kafka --timeout=300s
+
+Monitor connector logs:
+  kubectl logs -n kafka kafka-connect-cluster-connect-0 --tail=50 -f
+
+Verify archival to MinIO:
+  mc ls s3/{{ .Values.kafka_connect.s3_sink.bucket }}/ --recursive
+
+View archived data:
+  mc cat s3/{{ .Values.kafka_connect.s3_sink.bucket }}/iex-topic-1-0-0.jsonl.gz | gunzip | head -10
+
+Troubleshooting:
+  Check connector status:
+    kubectl get kafkaconnector s3-sink-raw -n kafka -o yaml
+
+  Check pod events:
+    kubectl describe pod kafka-connect-cluster-connect-0 -n kafka
+
+  Search for errors:
+    kubectl logs -n kafka kafka-connect-cluster-connect-0 --tail=100 | grep -iE "error|exception"

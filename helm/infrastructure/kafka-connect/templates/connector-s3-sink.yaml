@@ -1,0 +1,41 @@
+{{- if .Values.kafka_connect.s3_sink.enabled }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: s3-sink-raw
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-connect-cluster
+spec:
+  class: io.aiven.kafka.connect.s3.AivenKafkaConnectS3SinkConnector
+  tasksMax: 2
+  config:
+    topics: {{ .Values.kafka.topics.raw_trade }}
+
+    # S3/MinIO Configuration
+    aws.s3.bucket.name: {{ .Values.kafka_connect.s3_sink.bucket }}
+    aws.s3.endpoint: {{ .Values.kafka_connect.s3_sink.endpoint }}
+    aws.s3.region: {{ .Values.kafka_connect.s3_sink.region }}
+
+    # Authentication (reuses MinIO credentials)
+    aws.access.key.id: {{ .Values.minio.rootUser }}
+    aws.secret.access.key: {{ .Values.minio.rootPassword }}
+
+    # File format - JSON with GZIP compression
+    format.output.fields: value
+    format.output.fields.value.encoding: none
+    format.output.type: {{ .Values.kafka_connect.s3_sink.format }}
+    file.compression.type: {{ .Values.kafka_connect.s3_sink.compression }}
+
+    # Partitioning - time-based
+    file.name.template: {{ `"{{topic}}-{{partition}}-{{start_offset}}.jsonl.gz"` }}
+
+    # Flush settings - when to write files
+    file.max.records: {{ .Values.kafka_connect.s3_sink.max_records }}
+    kafka.retry.backoff.ms: {{ .Values.kafka_connect.s3_sink.flush_interval_ms }}
+
+    # Key and value converters
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false
+{{- end }}

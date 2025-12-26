@@ -372,6 +372,110 @@ deploy_websocket_extractor() {
     log_info "✓ WebSocket extractor deployed successfully."
 }
 
+deploy_kafka_connect() {
+    # Check state marker
+    if [ -f "$STATE_DIR/kafka_connect_deployed" ]; then
+        log_info "Skipping Kafka Connect deployment (marker found)."
+        return 0
+    fi
+
+    # Check if deployment already exists
+    if kubectl get kafkaconnect kafka-connect-cluster -n kafka >/dev/null 2>&1; then
+        log_info "Kafka Connect already exists, skipping deployment."
+        touch "$STATE_DIR/kafka_connect_deployed"
+        return 0
+    fi
+
+    log_info "Deploying Kafka Connect with S3 sink connector..."
+
+    # Step 1: Enable Minikube registry addon
+    log_info "Ensuring Minikube registry addon is enabled..."
+    if ! minikube addons list | grep "registry" | grep -q "enabled"; then
+        if ! minikube addons enable registry >> "$LOG_FILE" 2>&1; then
+            log_error "Failed to enable registry addon"
+            exit 1
+        fi
+        log_info "✓ Registry addon enabled"
+        sleep 5  # Give registry time to start
+    else
+        log_info "✓ Registry addon already enabled"
+    fi
+
+    # Step 2: Create MinIO bucket first (connector needs it)
+    log_info "Creating MinIO bucket for archival..."
+    if command -v mc >/dev/null 2>&1 && mc alias list 2>/dev/null | grep -q "^s3"; then
+        local BUCKET=$(get_yaml_value ".kafka_connect.s3_sink.bucket" "$CONFIG_FILE")
+        if ! mc ls s3/ 2>/dev/null | grep -q "$BUCKET"; then
+            if mc mb "s3/$BUCKET" >> "$LOG_FILE" 2>&1; then
+                log_info "✓ Bucket '$BUCKET' created"
+            else
+                log_warn "Failed to create bucket, but continuing..."
+            fi
+        else
+            log_info "✓ Bucket '$BUCKET' already exists"
+        fi
+    else
+        log_warn "MinIO client not configured, skipping bucket creation"
+    fi
+
+    # Step 3: Build and push image
+    log_info "Building Kafka Connect image..."
+    if ! "$PROJECT_DIR/scripts/build_kafka_connect_image.sh" >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to build Kafka Connect image"
+        log_error "Check log: $LOG_FILE"
+        exit 1
+    fi
+    log_info "✓ Kafka Connect image built and pushed"
+
+    # Step 4: Deploy with Helm
+    log_info "Deploying Kafka Connect cluster with Helm..."
+    if ! helm install kafka-connect "$PROJECT_DIR/helm/infrastructure/kafka-connect" \
+        -f "$CONFIG_FILE" \
+        -n kafka \
+        --create-namespace >> "$LOG_FILE" 2>&1; then
+        log_error "Failed to deploy Kafka Connect with Helm"
+        log_error "Check log: $LOG_FILE"
+        exit 1
+    fi
+    log_info "✓ Kafka Connect deployed"
+
+    # Step 5: Wait for pod to be ready
+    log_info "Waiting for Kafka Connect pod to be ready (this may take 2-3 minutes)..."
+    if kubectl wait --for=condition=Ready pod/kafka-connect-cluster-connect-0 \
+        -n kafka --timeout=300s >> "$LOG_FILE" 2>&1; then
+        log_info "✓ Kafka Connect pod is ready"
+    else
+        log_warn "Kafka Connect pod took longer than expected to be ready"
+    fi
+
+    # Step 6: Wait for connector to be ready
+    log_info "Waiting for S3 sink connector to be ready..."
+    local retries=0
+    local max_retries=30
+    while [ $retries -lt $max_retries ]; do
+        local ready=$(kubectl get kafkaconnector s3-sink-raw -n kafka \
+            -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+
+        if [ "$ready" = "True" ]; then
+            log_info "✓ S3 sink connector is ready"
+            break
+        fi
+
+        retries=$((retries + 1))
+        if [ $retries -eq $max_retries ]; then
+            log_warn "Connector not ready after $max_retries attempts, but continuing..."
+            break
+        fi
+
+        sleep 2
+    done
+
+    # Create marker
+    touch "$STATE_DIR/kafka_connect_deployed"
+
+    log_info "✓ Kafka Connect and S3 sink connector deployed successfully."
+}
+
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
@@ -388,6 +492,7 @@ main() {
     setup_infrastructure_resources
     install_minio_client
     build_and_deploy_kstreams
+    deploy_kafka_connect
     deploy_websocket_extractor
 
     log_info ""
@@ -396,9 +501,11 @@ main() {
     log_info "========================================="
     log_info ""
     log_info "Deployment Status:"
-    log_info "  KStreams:  kubectl get pods -n kafka -l app=kstreams-flatten"
+    log_info "  KStreams:      kubectl get pods -n kafka -l app=kstreams-flatten"
+    log_info "  Kafka Connect: kubectl get kafkaconnect -n kafka"
+    log_info "  S3 Connector:  kubectl get kafkaconnector -n kafka"
     if [ -n "$ALPACA_KEY" ]; then
-        log_info "  Extractor: kubectl get pods -n kafka -l app=ws-scraper"
+        log_info "  Extractor:     kubectl get pods -n kafka -l app=ws-scraper"
     fi
     log_info ""
     log_info "Access Information:"

@@ -3,7 +3,7 @@ multipass launch 25.10\
   --memory 17G \
   --disk 20G \
   --cpus 8
-
+multipass stop myvm
 multipass snapshot myvm
 multipass list --snapshots
 multipass restore myvm.clean-state

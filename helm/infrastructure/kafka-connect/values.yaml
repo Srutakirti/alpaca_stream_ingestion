@@ -1,0 +1,38 @@
+# Default values for kafka-connect
+# Values are primarily loaded from config/config.yaml at deployment time
+# This file provides structure and documentation
+
+# Kafka Connect cluster configuration
+# Actual values from: kafka_connect.* in config.yaml
+kafka_connect:
+  image:
+    repository: "localhost:5000/kafka-connect-s3"
+    tag: "latest"
+  replicas: 1
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  s3_sink:
+    enabled: true
+    bucket: "archive"
+    endpoint: "http://minio-single-hl.minio-tenant.svc:9000"
+    region: "us-east-1"
+    format: "jsonl"
+    compression: "gzip"
+    max_records: 1000
+    flush_interval_ms: 60000
+
+# Kafka configuration (reused from config.yaml)
+kafka:
+  bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  topics:
+    raw_trade: "iex-topic-1"
+
+# MinIO credentials (reused from config.yaml)
+minio:
+  rootUser: "minio"
+  rootPassword: "minio123"

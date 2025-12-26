@@ -1,0 +1,29 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: kafka-connect-cluster
+  namespace: kafka
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 3.9.0
+  replicas: {{ .Values.kafka_connect.replicas }}
+  bootstrapServers: {{ .Values.kafka.bootstrap_servers }}
+
+  # Use pre-built image with Aiven S3 connector
+  image: {{ .Values.kafka_connect.image.repository }}:{{ .Values.kafka_connect.image.tag }}
+
+  resources:
+{{ toYaml .Values.kafka_connect.resources | indent 4 }}
+
+  config:
+    group.id: kafka-connect-cluster
+    offset.storage.topic: connect-cluster-offsets
+    config.storage.topic: connect-cluster-configs
+    status.storage.topic: connect-cluster-status
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false
