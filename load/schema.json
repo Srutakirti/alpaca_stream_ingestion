@@ -15,7 +15,7 @@
   ],
   "dateTimeFieldSpecs": [
     {
-      "name": "timestamp",
+      "name": "time_stamp",
       "dataType": "TIMESTAMP",
       "format": "1:MILLISECONDS:EPOCH",
       "granularity": "1:MILLISECONDS"

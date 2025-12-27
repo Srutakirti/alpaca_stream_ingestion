@@ -108,7 +108,7 @@ public class StockData {
         this.v = v;
     }
 
-    @JsonProperty("timestamp")
+    @JsonProperty("time_stamp")
     public String getT_timestamp() {
         return t;
     }
@@ -148,7 +148,7 @@ public class StockData {
                 ", l=" + l +
                 ", c=" + c +
                 ", v=" + v +
-                ", timestamp='" + t + '\'' +
+                ", time_stamp='" + t + '\'' +
                 ", n=" + n +
                 ", vw=" + vw +
                 '}';

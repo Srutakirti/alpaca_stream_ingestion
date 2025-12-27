@@ -139,13 +139,12 @@ def main():
     select count(*) as total_events from stock_ticks_latest_2
     """
 
-    # Sample records query - get latest 10 records
-    # Schema columns: S (symbol), o/h/l/c (prices), v (volume), timestamp
-    # Note: 'timestamp' is a reserved keyword, use backticks
+    # Sample records query - get 10 sample records
+    # Schema columns: S (symbol), o/h/l/c (prices), v (volume), time_stamp
     records_query = """
-    select S, o, h, l, c, v, "timestamp"
+    select S, o, h, l, c, v, time_stamp
     from stock_ticks_latest_2
-    order by "timestamp" desc
+    order by time_stamp desc
     limit 10
     """
 
@@ -188,8 +187,8 @@ def main():
                 print("-" * 80)
 
                 # Format timestamp column to readable format
-                if 'timestamp' in records_df.columns:
-                    records_df['time'] = pd.to_datetime(records_df['timestamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+                if 'time_stamp' in records_df.columns:
+                    records_df['time'] = pd.to_datetime(records_df['time_stamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
 
                 # Rename columns for better display
                 column_mapping = {

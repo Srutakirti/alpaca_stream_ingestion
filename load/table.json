@@ -4,7 +4,7 @@
     "segmentsConfig": {
       "schemaName": "stock_ticks_latest_2",
       "replicasPerPartition": "1",
-      "timeColumnName": "timestamp",
+      "timeColumnName": "time_stamp",
       "minimizeDataMovement": false
     },
     "tenants": {
