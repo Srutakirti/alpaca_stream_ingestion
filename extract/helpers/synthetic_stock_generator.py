@@ -94,11 +94,12 @@ class StockPriceSimulator:
         # Volume weighted average price
         vwap = (high_price + low_price + close_price) / 3
 
-        # Timestamp in RFC3339 format (matching Alpaca format)
-        timestamp_str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        # Timestamp in RFC3339 format with second precision (matching Alpaca format exactly)
+        # Alpaca uses: "2020-07-27T13:35:00Z" (no fractional seconds)
+        timestamp_str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 
         return {
-            'T': 'b', 
+            'T': 'b',
             'S': self.symbol,
             'o': round(open_price, 2),
             'h': round(high_price, 2),

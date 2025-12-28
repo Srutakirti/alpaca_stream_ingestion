@@ -154,10 +154,8 @@ def main():
 
     try:
         while True:
-            # Clear screen (works on both Windows and Unix)
-            print("\033[H\033[J")
-
             # Print timestamp
+            print(f"\n{'='*80}")
             print(f"Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             print("=" * 80)
 
@@ -188,7 +186,17 @@ def main():
 
                 # Format timestamp column to readable format
                 if 'time_stamp' in records_df.columns:
-                    records_df['time'] = pd.to_datetime(records_df['time_stamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    # Handle both string timestamps and numeric epoch milliseconds
+                    if pd.api.types.is_numeric_dtype(records_df['time_stamp']):
+                        # Numeric epoch milliseconds
+                        records_df['time'] = pd.to_datetime(records_df['time_stamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        # String timestamp - try to parse directly
+                        try:
+                            records_df['time'] = pd.to_datetime(records_df['time_stamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            # If parsing fails, just use the string as-is
+                            records_df['time'] = records_df['time_stamp']
 
                 # Rename columns for better display
                 column_mapping = {
@@ -203,7 +211,7 @@ def main():
 
                 # Select and reorder columns for display
                 display_cols = []
-                for col in ['symbol', 'open', 'high', 'low', 'close', 'volume', 'time']:
+                for col in ['time', 'symbol', 'open', 'high', 'low', 'close', 'volume', 'time_stamp']:
                     if col in records_df.columns:
                         display_cols.append(col)
 
