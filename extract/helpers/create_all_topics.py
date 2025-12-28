@@ -25,7 +25,7 @@ from kafka.errors import TopicAlreadyExistsError, NoBrokersAvailable
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from common_config import load_config
+from old_archive.common_config import load_config
 
 # Configure Kafka client logging (reduce noise)
 logging.getLogger('kafka').setLevel(logging.WARNING)

@@ -1,0 +1,25 @@
+===============================================================================
+Apache Pinot has been deployed successfully!
+===============================================================================
+
+Pinot is accessible via NodePort services:
+
+1. Pinot Controller (REST API & Web UI):
+   - URL: http://$(minikube ip):{{ .Values.pinot-chart.controller.service.nodePort }}
+   - NodePort: {{ .Values.pinot-chart.controller.service.nodePort }}
+
+   Access the Web UI:
+     open http://$(minikube ip):{{ .Values.pinot-chart.controller.service.nodePort }}
+
+2. Pinot Broker (Query API):
+   - URL: http://$(minikube ip):{{ .Values.pinot-chart.broker.service.nodePort }}
+   - NodePort: {{ .Values.pinot-chart.broker.service.nodePort }}
+
+3. Check Pinot components:
+   kubectl get pods -n {{ .Release.Namespace }}
+   kubectl get svc -n {{ .Release.Namespace }}
+
+4. View controller logs:
+   kubectl logs -n {{ .Release.Namespace }} -l app=pinot-controller --tail=100 -f
+
+For more information, visit: https://docs.pinot.apache.org/
