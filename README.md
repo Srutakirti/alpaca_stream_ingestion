@@ -1,55 +1,63 @@
 # Alpaca Stream Ingestion
 
-> **A complete real-time data engineering pipeline for learning and rapid prototyping**
+> **Real-time streaming data pipeline for local development, education, and exploration**
 
-Local-first streaming data platform that ingests live stock market data, processes it with Kafka Streams, and stores it in modern data lakehouse (Iceberg) and analytics (Pinot) systems - all running on Minikube without any cloud dependencies.
+A production-ready streaming platform that ingests live stock market data via WebSocket, processes it with Kafka Streams, and loads it into Apache Pinot for real-time analytics - all running locally on Minikube with a config-driven, Helm-based architecture that's transferable to enterprise cloud deployments.
 
 ---
 
 ## Purpose
 
-This project is designed for:
-- **Learning**: Hands-on experience with modern data engineering tools (Kafka, Kafka Streams, Iceberg, Pinot)
-- **Rapid Prototyping**: Test streaming patterns and transformations locally before cloud deployment
-- **No Cloud Lock-in**: Everything runs on your machine using Minikube
-- **Real Data**: Connect to Alpaca's free tier for live stock market data, or use built-in sample generators
-
-Perfect for data engineers learning streaming patterns, students exploring distributed systems, or professionals prototyping data pipelines.
+- **Local Development**: Full streaming pipeline on your laptop using Minikube
+- **Education**: Hands-on experience with modern data engineering (Kafka, Kafka Streams, Pinot, Helm)
+- **Exploration**: Experiment with streaming patterns, transformations, and real-time analytics
+- **Enterprise-Ready**: Helm-based infrastructure and config-driven design for easy cloud migration
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────┐
-│  Alpaca WebSocket│  (Live IEX Stock Data)
-│  or Sample Gen   │
-└────────┬─────────┘
-         │
-         ▼
-┌────────────────────┐
-│   Apache Kafka     │  (Message Broker - Strimzi Operator)
-│  Topic: iex_data   │
-└────────┬───────────┘
-         │
-         ▼
-┌────────────────────┐
-│  Kafka Streams     │  (Stream Processing - Java)
-│  - Flatten JSON    │
-│  - Transform       │
-└────────┬───────────┘
-         │
-         ├─────────────────┐
-         ▼                 ▼
-┌─────────────────┐  ┌──────────────────┐
-│ Apache Iceberg  │  │  Apache Pinot    │
-│ (Data Lakehouse)│  │  (Real-time      │
-│                 │  │   Analytics)     │
-│ Storage: MinIO  │  │                  │
-└─────────────────┘  └──────────────────┘
+┌─────────────────────┐
+│  EXTRACT            │
+│  extract/           │  Alpaca WebSocket API / Synthetic Generator
+│  - Alpaca WS        │  → Kafka (iex-topic-1)
+│  - Synthetic Gen    │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  Kafka (Strimzi)    │  Message Broker
+│  iex-topic-1        │  (Deployed via Helm)
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  TRANSFORM          │
+│  transform/Kstreams │  Stream Processing (Java)
+│  - Flatten arrays   │  iex-topic-1 → iex-topic-1-flattened
+│  - Field transform  │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  LOAD               │
+│  load/              │  Apache Pinot (Real-time Analytics)
+│  - Pinot tables     │  Query stock data in real-time
+│  - Schema/Config    │
+└─────────────────────┘
+
+           ┌─────────────────────┐
+           │  INFRASTRUCTURE     │
+           │  helm/              │  Kafka Connect → MinIO
+           │  - Kafka            │  Archive data to S3-compatible storage
+           │  - Kafka Connect    │
+           │  - MinIO            │
+           │  - Pinot            │
+           └─────────────────────┘
 ```
 
-**Data Flow:** WebSocket → Kafka → Kafka Streams → (Iceberg + Pinot)
+**Pipeline:** Extract (WebSocket) → Transform (KStreams) → Load (Pinot) + Archive (MinIO)
 
 ---
 
@@ -57,14 +65,14 @@ Perfect for data engineers learning streaming patterns, students exploring distr
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Infrastructure** | Minikube + Docker | Local Kubernetes cluster |
-| **Messaging** | Apache Kafka (Strimzi) | Distributed message broker |
-| **Stream Processing** | Kafka Streams (Java 17) | Real-time data transformation and flattening |
-| **Data Lakehouse** | Apache Iceberg | ACID-compliant table format with time-travel |
-| **Analytics Database** | Apache Pinot | Low-latency OLAP queries |
-| **Object Storage** | MinIO | S3-compatible storage for Iceberg |
-| **Data Source** | Alpaca WebSocket API | Live stock market data (IEX feed) |
-| **Languages** | Java 17, Python 3.10+ | Application development |
+| **Infrastructure** | Minikube + Helm | Local Kubernetes with declarative deployments |
+| **Messaging** | Apache Kafka (Strimzi) | Distributed event streaming |
+| **Stream Processing** | Kafka Streams (Java 17) | Real-time transformation and flattening |
+| **Analytics** | Apache Pinot | Low-latency OLAP and real-time queries |
+| **Archival** | Kafka Connect + MinIO | S3-compatible object storage sink |
+| **Data Source** | Alpaca WebSocket / Synthetic | Live market data or generated events |
+| **Configuration** | YAML (config/config.yaml) | Single source of truth for all components |
+| **Languages** | Java 17, Python 3.10+ | Stream processing and tooling |
 
 ---
 
@@ -72,53 +80,46 @@ Perfect for data engineers learning streaming patterns, students exploring distr
 
 ```
 alpaca_stream_ingestion/
-├── kstreams-app/              # Kafka Streams application (Java)
-│   ├── src/main/java/com/example/kstreams/
-│   │   ├── StreamProcessor.java      # Main KStreams app with CLI
-│   │   ├── StockData.java            # Stock data POJO
-│   │   ├── JsonSerializer.java       # JSON serialization
-│   │   ├── JsonDeserializer.java     # JSON deserialization
-│   │   └── JsonSerde.java            # Combined serdes
-│   ├── build.gradle                  # Gradle build config
-│   ├── Dockerfile                    # Multi-stage Docker build
-│   ├── build-docker.sh               # Docker image builder
-│   ├── deploy-k8s.sh                 # K8s deployment script
-│   └── k8s/deployment.yaml           # K8s manifest
 │
-├── extract/                   # Data ingestion layer
+├── extract/                          # EXTRACT: Data Ingestion
 │   ├── app/
-│   │   ├── alpaca_ws_updated_conf.py   # WebSocket → Kafka producer
-│   │   └── conf_reader.py              # Configuration loader
-│   ├── admin/
-│   │   ├── create_kafka_topic.py       # Topic management utility
-│   │   └── kafka_consumer_stdout.py    # Debug consumer
+│   │   └── alpaca_ws_updated_conf.py      # Alpaca WebSocket → Kafka
+│   ├── helpers/
+│   │   └── synthetic_stock_generator.py   # Synthetic event generator
 │   └── history/
-│       └── simulate_stream_from_history.py  # Historical data replay
+│       └── history_data_collect_streaming.py  # Historical data fetcher
 │
-├── transform/                 # Stream processing utilities
-│   └── iceberg_compaction.py  # Iceberg table compaction script
+├── transform/                        # TRANSFORM: Stream Processing
+│   └── Kstreams/
+│       ├── src/main/java/com/example/kstreams/
+│       │   ├── StreamProcessor.java       # Main KStreams application
+│       │   └── StockData.java             # Stock data POJO with transformations
+│       ├── Dockerfile                     # Multi-stage build
+│       └── build.gradle                   # Gradle config
 │
-├── load/                      # Query and analytics layer
-│   ├── pinot_qeury_display.py  # Pinot query utilities
-│   ├── schema.json             # Pinot schema definitions
-│   └── table.json              # Pinot table configurations
+├── load/                             # LOAD: Analytics Layer
+│   ├── pinot_qeury_display.py             # Query Pinot tables
+│   ├── schema.json                        # Pinot schema definition
+│   ├── table.json                         # Pinot table config
+│   ├── create.py                          # Create schemas/tables
+│   └── kafka-connect/                     # Kafka Connect image build
 │
-├── minikube/                  # Kubernetes manifests
-│   ├── kafka/
-│   │   ├── 00-kafka_ns.yaml                # Kafka namespace
-│   │   ├── 01-stimzi_operator.yaml         # Strimzi operator
-│   │   ├── 02-kafka_deploy.yaml            # Kafka cluster definition
-│   │   └── sample_event_generators/
-│   │       └── stream_producer_cli.py      # Sample data generator
-│   ├── minio/                 # MinIO deployment manifests
-│   ├── pinot/                 # Pinot deployment (Helm values)
-│   └── extractor_deploy/      # WebSocket app K8s deployment
+├── helm/infrastructure/              # INFRASTRUCTURE: Helm Charts
+│   ├── kafka/                             # Kafka (Strimzi operator)
+│   ├── kafka-connect/                     # Kafka Connect S3 sink
+│   ├── minio/                             # MinIO object storage
+│   └── pinot/                             # Apache Pinot
 │
-├── config/                    # Configuration files
-├── iceberg/                   # Iceberg table definitions
-├── test_new_2.sh             # Automated infrastructure setup script
-├── pyproject.toml            # Python dependencies
-└── README.md                 # This file
+├── config/
+│   └── config.yaml                   # Central configuration (single source of truth)
+│
+├── scripts/                          # Installation & Setup
+│   ├── 1_install_dependencies_new.sh      # Install system dependencies
+│   ├── 2_setup_kubernetes_new.sh          # Setup Minikube cluster
+│   ├── 3_setup_apps_new.sh                # Deploy all applications
+│   └── build_kafka_connect_image.sh       # Build Kafka Connect image
+│
+└── pyproject.toml                    # Python dependencies (managed by uv)
 ```
 
 ---
@@ -127,399 +128,311 @@ alpaca_stream_ingestion/
 
 ### Prerequisites
 - **Hardware**: 8 CPU cores, 15GB RAM minimum
-- **OS**: Ubuntu Linux (22.04+) or similar
+- **OS**: Ubuntu Linux (22.04+)
 - **Optional**: Alpaca API credentials for live data ([free tier](https://alpaca.markets))
 
-### 1. Automated Setup (5 minutes)
+### 1. Install Dependencies & Setup Infrastructure
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone <repository-url>
 cd alpaca_stream_ingestion
 
-# Run the automated setup script
-chmod +x test_new_2.sh
+# Make scripts executable
+chmod +x scripts/*.sh
 
-# Full setup: installs dependencies, starts Minikube, deploys all services
-./test_new_2.sh --setup-infra --setup-minikube --setup-kafka --setup-minio --setup-pinot
+# Step 1: Install system dependencies (Docker, Minikube, kubectl, Helm, Java, uv)
+./scripts/1_install_dependencies_new.sh
 
-# Enable port forwarding
-./test_new_2.sh --port-forward
+# Step 2: Setup Minikube cluster
+./scripts/2_setup_kubernetes_new.sh
+
+# Step 3: Deploy infrastructure (Kafka, MinIO, Pinot, Kafka Connect)
+./scripts/3_setup_apps_new.sh
 ```
 
-This installs: Docker, Minikube, kubectl, Helm, Java, Spark, UV, and deploys Kafka, MinIO, and Pinot.
+This deploys all infrastructure components via Helm using configuration from `config/config.yaml`.
 
-### 2. Start Sample Data Generator
+### 2. Generate Data
+
+**Option A: Synthetic data (no API credentials needed)**
+```bash
+uv run python extract/helpers/synthetic_stock_generator.py \
+  --symbols AAPL TSLA GOOGL \
+  --rate 5
+```
+
+**Option B: Live Alpaca data**
+```bash
+export ALPACA_KEY="your-key"
+export ALPACA_SECRET="your-secret"
+uv run python extract/app/alpaca_ws_updated_conf.py
+```
+
+### 3. Query Real-Time Data
 
 ```bash
-# Generate sample stock data (no API credentials needed)
-python minikube/kafka/sample_event_generators/stream_producer_cli.py \
-  --kafka-brokers localhost:9092 \
-  --topic iex_data \
-  --symbols AAPL GOOGL MSFT \
-  --batch-size 50 \
-  --interval 2
+# Monitor Pinot table (auto-detects controller)
+uv run python load/pinot_qeury_display.py --interval 60
 ```
 
-### 3. Build and Deploy Kafka Streams Application
-
+**Access Pinot Web UI:**
 ```bash
-cd kstreams-app
-
-# Build Docker image in Minikube
-./build-docker.sh
-
-# Deploy to Kubernetes
-./deploy-k8s.sh
-
-# Check status
-kubectl get pods -n kafka -l app=kstreams-flatten
-
-# View logs
-kubectl logs -n kafka -l app=kstreams-flatten -f
+open http://$(minikube ip):30900
 ```
 
-**That's it!** Your pipeline is now running.
+**That's it!** Your real-time pipeline is running.
 
 ---
 
 ## Access Services
 
-Once deployed, access these services:
+All services are accessible via Minikube NodePort (no port-forwarding needed):
 
-- **Pinot Console**: http://localhost:9000 (query analytics)
-- **MinIO Console**: http://localhost:9001 (view storage, credentials: minio/minio123)
-- **Kafka**: localhost:9092 (message broker)
+```bash
+# Get Minikube IP
+export MINIKUBE_IP=$(minikube ip)
+```
+
+- **Pinot Controller**: `http://$MINIKUBE_IP:30900` (Web UI, query editor, schema management)
+- **Pinot Broker**: `http://$MINIKUBE_IP:30099` (SQL query endpoint)
+- **MinIO Console**: `http://$MINIKUBE_IP:30001` (object storage, credentials: minio/minio123)
+- **Kafka (External)**: `$MINIKUBE_IP:32100` (bootstrap server for external clients)
 
 ---
 
 ## How It Works
 
-### 1. Data Ingestion
-Stock market data flows from either:
-- **Live**: Alpaca WebSocket API (requires free API credentials)
-- **Sample**: Built-in generator (`stream_producer_cli.py`)
+### 1. Extract (Data Ingestion)
+- **Alpaca WebSocket**: Live stock market data (IEX feed) → Kafka topic `iex-topic-1`
+- **Synthetic Generator**: Realistic simulated stock bars → Kafka topic `iex-topic-1`
+- Data arrives as JSON arrays of stock bars
 
-Data is produced to Kafka topic `iex_data` as JSON arrays.
+### 2. Transform (Stream Processing)
+Kafka Streams application (`transform/Kstreams/`):
+- Consumes from `iex-topic-1`
+- Flattens JSON arrays into individual events
+- Transforms field names: `t` → `time_stamp`, `S` → symbol, etc.
+- Produces to `iex-topic-1-flattened`
 
-### 2. Stream Processing (Kafka Streams)
-The Java-based Kafka Streams application:
-- Reads JSON arrays from the source topic
-- Flattens each array element into individual messages
-- Transforms and validates stock data
-- Writes flattened records to output topic
+**Example:** `[{...}, {...}, {...}]` → `{...}`, `{...}`, `{...}` (3 separate messages)
 
-**Example Transformation:**
-
-Input (JSON array):
-```json
-[
-  {"T": "T", "S": "NVDA", "o": 187.87, "h": 185.67, "l": 184.94, "c": 185.47, "v": 44481045, "t": "2025-11-13T00:35:21.076148Z", "n": 145488, "vw": 185.36},
-  {"T": "T", "S": "AAPL", "o": 150.0, "h": 152.0, "l": 149.5, "c": 151.0, "v": 30000000, "t": "2025-11-13T00:35:21.076148Z", "n": 100000, "vw": 150.5}
-]
-```
-
-Output (individual messages):
-```json
-{"T": "T", "S": "NVDA", "o": 187.87, "h": 185.67, "l": 184.94, "c": 185.47, "v": 44481045, "t": "2025-11-13T00:35:21.076148Z", "n": 145488, "vw": 185.36}
-{"T": "T", "S": "AAPL", "o": 150.0, "h": 152.0, "l": 149.5, "c": 151.0, "v": 30000000, "t": "2025-11-13T00:35:21.076148Z", "n": 100000, "vw": 150.5}
-```
-
-### 3. Dual Storage
-Processed data is stored in both:
-- **Iceberg**: Data lakehouse for historical analysis, time-travel queries
-- **Pinot**: Real-time analytics for low-latency OLAP queries
+### 3. Load (Real-Time Analytics)
+- **Pinot**: Ingests from `iex-topic-1-flattened` for sub-second SQL queries
+- **Kafka Connect**: Archives raw data to MinIO (S3-compatible) in JSONL+gzip format
 
 ---
 
 ## Common Operations
 
-### Query Real-time Analytics (Pinot)
+### Query Pinot (Real-Time Analytics)
 
-Access Pinot console at http://localhost:9000
+```bash
+# Auto-refresh query display (auto-detects Pinot controller)
+uv run python load/pinot_qeury_display.py --interval 60
+```
 
+**Or use Pinot Web UI** at `http://$(minikube ip):30900`:
 ```sql
--- Count trades by symbol
-SELECT S as symbol, COUNT(*) as trade_count
-FROM flattened_stocks
+-- Count events by symbol
+SELECT S, COUNT(*) as count
+FROM stock_ticks_latest_2
 GROUP BY S
-ORDER BY trade_count DESC
+ORDER BY count DESC;
+
+-- Latest prices with timestamps
+SELECT S, o, h, l, c, v, time_stamp
+FROM stock_ticks_latest_2
+ORDER BY time_stamp DESC
 LIMIT 10;
-
--- Average price by symbol
-SELECT S as symbol, AVG(p) as avg_price
-FROM flattened_stocks
-GROUP BY S;
 ```
 
-### Compact Iceberg Tables
-
-The Iceberg compaction script optimizes storage by merging small files:
+### Monitor Infrastructure
 
 ```bash
-python transform/iceberg_compaction.py \
-  --table iex_db.raw_stream_iex_2 \
-  --target-file-size-mb 512 \
-  --iceberg-catalog my_catalog \
-  --iceberg-warehouse s3a://test2/mywarehouse
+# View all pods across namespaces
+kubectl get pods -A
+
+# Check Kafka cluster
+kubectl get pods -n kafka
+kubectl logs -n kafka my-cluster-kafka-0
+
+# Check KStreams transformer
+kubectl logs -n kafka -l app=kstreams-flatten
+
+# Check Pinot
+kubectl get pods -n pinot
+kubectl logs -n pinot -l app=pinot-controller
+
+# View services and NodePorts
+kubectl get svc -A | grep NodePort
 ```
 
-**Features:**
-- Merges small files to improve query performance
-- Displays before/after statistics
-- Supports partition filtering
-- Dry-run mode available
-
-### Manage Kafka Topics
+### Check Configuration
 
 ```bash
-# Create topic
-python extract/admin/create_kafka_topic.py \
-  --topic my_topic \
-  --partitions 3 \
-  --replication-factor 1 \
-  --bootstrap-servers localhost:9092
+# View current config
+cat config/config.yaml
 
+# Validate Helm chart with config
+helm template helm/infrastructure/kafka -f config/config.yaml
+
+# Update infrastructure (after config changes)
+helm upgrade kafka helm/infrastructure/kafka -f config/config.yaml -n kafka
+```
+
+### Kafka Operations
+
+```bash
 # List topics
 kubectl exec -it my-cluster-kafka-0 -n kafka -- \
   bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 
-# Debug consumer
-python extract/admin/kafka_consumer_stdout.py \
-  --topic iex_data \
-  --bootstrap-servers localhost:9092
-```
-
-### Monitor Kafka Streams Application
-
-```bash
-# View application logs
-kubectl logs -n kafka -l app=kstreams-flatten -f
-
-# Check consumer lag
+# Check consumer groups
 kubectl exec -it my-cluster-kafka-0 -n kafka -- \
-  bin/kafka-consumer-groups.sh \
+  bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+
+# View topic data
+kubectl exec -it my-cluster-kafka-0 -n kafka -- \
+  bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
-  --describe --group kstreams-flatten-app
-
-# Edit configuration
-kubectl edit configmap kstreams-flatten-config -n kafka
-
-# Restart application
-kubectl rollout restart deployment/kstreams-flatten-app -n kafka
+  --topic iex-topic-1-flattened \
+  --max-messages 10
 ```
 
-### Minikube Commands
+---
 
+## Configuration
+
+All configuration is centralized in `config/config.yaml`:
+
+```yaml
+kafka:
+  bootstrap_servers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  topics:
+    raw_trade: "iex-topic-1"
+    flattened_trade: "iex-topic-1-flattened"
+
+kafka_connect:
+  s3_sink:
+    bucket: "archive"
+    format: "jsonl"
+    compression: "gzip"
+
+minio:
+  rootUser: "minio"
+  rootPassword: "minio123"
+
+minikube:
+  cpu: 8
+  memory: 14999  # MB
+```
+
+**Update infrastructure after config changes:**
 ```bash
-# Start/stop Minikube
-minikube start
-minikube stop
-minikube status
-
-# View all pods
-kubectl get pods -A
-
-# Service list
-minikube service list
-
-# Check resources
-kubectl top nodes
-kubectl top pods -A
+helm upgrade <component> helm/infrastructure/<component> -f config/config.yaml -n <namespace>
 ```
 
 ---
 
 ## Troubleshooting
 
-### Kafka Streams Application Not Starting
-
-**Check logs:**
+### Pods Not Starting
 ```bash
-kubectl logs -n kafka -l app=kstreams-flatten
+# Check pod status and events
+kubectl get pods -A
+kubectl describe pod <pod-name> -n <namespace>
+
+# View logs
+kubectl logs <pod-name> -n <namespace>
 ```
 
-**Common issues:**
-- Kafka broker not ready - wait for Kafka pods to be running
-- Topic doesn't exist - create input/output topics first
-- Resource constraints - check pod events with `kubectl describe pod`
-
-### Minikube Out of Resources
-
+### Minikube Resource Issues
 ```bash
-# Stop Minikube
-minikube stop
+# Check resource usage
+kubectl top nodes
+kubectl top pods -A
 
-# Restart with more resources
-minikube start --cpus=12 --memory=20000
+# Increase resources (requires restart)
+minikube delete
+minikube start --cpus=10 --memory=16384
 ```
 
-### Kafka Pod Not Starting
-
+### Kafka Connect Issues
 ```bash
-# Check logs
-kubectl logs -n kafka my-cluster-kafka-0
+# Check connector status
+kubectl get kafkaconnector -n kafka
+kubectl describe kafkaconnector s3-sink-raw -n kafka
 
-# Check events
-kubectl describe pod my-cluster-kafka-0 -n kafka
-
-# Verify Strimzi operator
-kubectl get pods -n kafka -l name=strimzi-cluster-operator
+# View Kafka Connect logs
+kubectl logs -n kafka -l strimzi.io/kind=KafkaConnect
 ```
 
-### MinIO Connection Issues
-
+### Pinot Table Not Ingesting
 ```bash
-# Verify MinIO is running
-kubectl get pods -n minio
+# Check Pinot server logs
+kubectl logs -n pinot -l app=pinot-server
 
-# Check port forwarding
-ps aux | grep "kubectl port-forward"
-
-# Restart port forward
-kubectl port-forward -n minio svc/minio 9000:9000 9001:9001 &
+# Verify Kafka connectivity from Pinot
+kubectl exec -it -n pinot <pinot-server-pod> -- \
+  curl my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
 ```
-
-### Snappy Compression Error
-
-```bash
-# Install required libraries
-sudo apt-get install -y libsnappy-dev
-pip install python-snappy
-```
-
----
-
-## Development
-
-### Modifying Kafka Streams Application
-
-1. Edit source code in `kstreams-app/src/main/java/`
-2. Rebuild Docker image: `cd kstreams-app && ./build-docker.sh`
-3. Redeploy: `kubectl rollout restart deployment/kstreams-flatten-app -n kafka`
-
-### Adding New Stock Data Fields
-
-1. Update `StockData.java` with new fields
-2. Add Jackson annotations (`@JsonProperty`)
-3. Update getters/setters and `toString()`
-4. Rebuild and redeploy
-
-### Running Locally (without Kubernetes)
-
-```bash
-cd kstreams-app
-
-# Build
-./gradlew build
-
-# Run with local Kafka
-./gradlew run --args="-b localhost:9092 -i iex_data -o iex_data_flattened"
-```
-
----
-
-## What You'll Learn
-
-This project provides hands-on experience with:
-
-- **Stream Ingestion**: WebSocket → Kafka producer patterns
-- **Message Brokers**: Kafka topics, partitions, consumer groups
-- **Stream Processing**: Kafka Streams topology, transformations, serdes
-- **Data Lakehouse**: Iceberg ACID transactions, time-travel, schema evolution, compaction
-- **Real-time Analytics**: Pinot indexing, OLAP query optimization
-- **Kubernetes**: Deploying stateful applications, operators (Strimzi), ConfigMaps
-- **Object Storage**: S3-compatible storage with MinIO
-- **Java Streaming**: Modern Java patterns, picocli, Jackson, multi-stage Docker builds
-
-**Suggested Next Steps:**
-- Add windowed aggregations in Kafka Streams (e.g., 5-minute VWAP)
-- Implement stateful transformations with state stores
-- Create Pinot real-time tables with complex indexes
-- Experiment with Iceberg partition evolution and hidden partitions
-- Build custom stream processors with joins and branching
-- Add metrics and monitoring with JMX/Prometheus
-
----
-
-## Configuration Reference
-
-### Kafka Streams Application
-
-Edit `kstreams-app/k8s/deployment.yaml` ConfigMap:
-
-```yaml
-data:
-  KAFKA_BROKER: "my-cluster-kafka-bootstrap:9092"
-  INPUT_TOPIC: "iex-topic-1"
-  OUTPUT_TOPIC: "iex-topic-1-flattened"
-  APP_NAME: "kstreams-flatten-app"
-```
-
-### Kafka Cluster
-
-Edit `minikube/kafka/02-kafka_deploy.yaml`:
-
-```yaml
-spec:
-  kafka:
-    replicas: 3  # Number of brokers
-    config:
-      num.partitions: 3
-      default.replication.factor: 1
-      log.retention.hours: 168  # 7 days
-```
-
-### MinIO Credentials
-
-Default: `minio` / `minio123`
-
-To change, edit MinIO deployment before applying.
 
 ---
 
 ## Cleanup
 
-### Stop Services (preserve data)
-
+### Stop Minikube (preserve data)
 ```bash
 minikube stop
-pkill -f "kubectl port-forward"
 ```
 
 ### Delete Everything
-
 ```bash
-# Delete Minikube cluster
 minikube delete
-
-# Remove project dependencies
 rm -rf .venv
 ```
 
-### Delete Kafka Streams App Only
-
+### Uninstall Individual Components
 ```bash
-kubectl delete -f kstreams-app/k8s/deployment.yaml
+# Uninstall via Helm
+helm uninstall kafka -n kafka
+helm uninstall pinot -n pinot
+helm uninstall minio -n minio-tenant
+helm uninstall kafka-connect -n kafka
+
+# Delete namespaces
+kubectl delete namespace kafka pinot minio-tenant
 ```
 
 ---
 
-## External Resources
+## Enterprise Migration
 
-- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
-- [Kafka Streams Documentation](https://kafka.apache.org/documentation/streams/)
-- [Apache Iceberg Documentation](https://iceberg.apache.org/docs/latest/)
-- [Apache Pinot Documentation](https://docs.pinot.apache.org/)
-- [Strimzi Kafka Operator](https://strimzi.io/docs/operators/latest/overview.html)
-- [Alpaca API Documentation](https://alpaca.markets/docs/)
+This local setup is designed for cloud migration:
+
+1. **Helm Charts**: All infrastructure uses Helm → deploy to EKS/GKE/AKS
+2. **Config-Driven**: Update `config/config.yaml` for cloud resources (managed Kafka, S3, etc.)
+3. **Kubernetes Native**: Manifests work on any K8s cluster
+4. **Operator-Based**: Strimzi operator for production Kafka management
+
+**Cloud Replacements:**
+- Minikube → EKS/GKE/AKS
+- MinIO → AWS S3/GCS/Azure Blob
+- Local Kafka → Confluent Cloud/AWS MSK/Azure Event Hubs
+- KStreams pod → AWS ECS/Fargate or keep in K8s
 
 ---
 
-## License
+## Resources
 
-This project is for educational and learning purposes. Feel free to use, modify, and extend for your own learning and prototyping needs.
+- [Apache Kafka](https://kafka.apache.org/documentation/)
+- [Kafka Streams](https://kafka.apache.org/documentation/streams/)
+- [Apache Pinot](https://docs.pinot.apache.org/)
+- [Strimzi Operator](https://strimzi.io/docs/operators/latest/)
+- [Alpaca Markets API](https://alpaca.markets/docs/)
+- [Helm Charts](https://helm.sh/docs/)
 
 ---
 
-**Happy Streaming!**
+**Built for learning, designed for production.**

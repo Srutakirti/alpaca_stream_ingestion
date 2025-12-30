@@ -105,5 +105,5 @@ directories:
 
 # Minikube resource configuration
 minikube:
-  cpu: 8
-  memory: 14999  # in MB
+  cpu: 4
+  memory: 4500  # in MB

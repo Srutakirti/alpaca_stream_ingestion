@@ -1,8 +1,8 @@
 multipass launch 25.10\
   --name myvm \
-  --memory 17G \
+  --memory 5G \
   --disk 20G \
-  --cpus 8
+  --cpus 4
 multipass stop myvm
 multipass snapshot myvm
 multipass list --snapshots
