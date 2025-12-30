@@ -8,5 +8,6 @@ multipass snapshot myvm
 multipass list --snapshots
 multipass restore myvm.clean-state
 
+git clone https://github.com/Srutakirti/alpaca_stream_ingestion.git
 
 
