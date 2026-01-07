@@ -30,12 +30,36 @@ set -e  # Exit on error
 # ============================================================================
 
 ensure_yq_installed() {
-    # Check if yq is already available
+    # Add ~/.local/bin to PATH if not already present
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # Check if yq is already available in PATH
     if command -v yq >/dev/null 2>&1; then
         return 0
     fi
 
-    echo "yq not found, installing..."
+    # Check common installation locations even if not in PATH
+    local YQ_LOCATIONS=(
+        "$HOME/.local/bin/yq"
+        "/usr/local/bin/yq"
+        "/usr/bin/yq"
+    )
+
+    for yq_path in "${YQ_LOCATIONS[@]}"; do
+        if [ -x "$yq_path" ]; then
+            echo "Found yq at: $yq_path"
+            # Add directory to PATH if not already there
+            local yq_dir=$(dirname "$yq_path")
+            if [[ ":$PATH:" != *":$yq_dir:"* ]]; then
+                export PATH="$yq_dir:$PATH"
+            fi
+            return 0
+        fi
+    done
+
+    echo "yq not found in any location, installing..."
 
     # Create ~/.local/bin if it doesn't exist
     mkdir -p "$HOME/.local/bin"
@@ -53,9 +77,6 @@ ensure_yq_installed() {
     fi
 
     chmod +x "$HOME/.local/bin/yq"
-
-    # Add to PATH for current session
-    export PATH="$HOME/.local/bin:$PATH"
 
     echo "yq installed successfully to ~/.local/bin/yq"
 }
