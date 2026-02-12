@@ -1,8 +1,15 @@
 multipass launch 25.10\
-  --name myvm \
-  --memory 5G \
+  --name myvm1\
+  --memory 8G \
   --disk 20G \
   --cpus 4
+
+  multipass launch questing\
+  --name myvm1\
+  --memory 8G \
+  --disk 20G \
+  --cpus 4
+
 multipass stop myvm
 multipass snapshot myvm
 multipass list --snapshots

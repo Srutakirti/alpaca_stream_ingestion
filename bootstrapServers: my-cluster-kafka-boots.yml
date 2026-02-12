@@ -1,0 +1,10 @@
+bootstrapServers: my-cluster-kafka-bootstrap:9092
+image: localhost:5000/kafka-connect-s3:latest
+    topics: iex-topic-1
+        aws.s3.bucket.name: archive
+    aws.s3.endpoint: http://minio-single-hl.minio-tenant.svc:9000
+    aws.s3.region: us-east-1
+
+    # Authentication
+    aws.access.key.id: minio
+    aws.secret.access.key: minio123
