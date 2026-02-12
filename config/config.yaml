@@ -13,8 +13,8 @@ kafka:
 # Kafka Connect configuration
 kafka_connect:
   image:
-    repository: "localhost:5000/kafka-connect-s3"
-    tag: "latest"
+    repository: "kafka-connect-s3"
+    tag: "1.0.0"
   replicas: 1
   resources:
     requests:

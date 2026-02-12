@@ -141,24 +141,7 @@ main() {
     echo ""
     echo -e "${GREEN}✓${NC} Image built successfully: $IMAGE_FULL"
     echo ""
-
-    # Step 3: Push to local registry
-    echo -e "${BLUE}==>${NC} Pushing image to Minikube registry..."
-
-    if ! docker push "$IMAGE_FULL"; then
-        echo ""
-        echo -e "${RED}ERROR:${NC} Failed to push image to registry"
-        echo ""
-        echo "Troubleshooting:"
-        echo "  1. Ensure Minikube registry addon is enabled:"
-        echo "     minikube addons enable registry"
-        echo "  2. Check registry pods are running:"
-        echo "     kubectl get pods -n kube-system | grep registry"
-        exit 1
-    fi
-
-    echo ""
-    echo -e "${GREEN}✓${NC} Image pushed to registry: $IMAGE_FULL"
+    echo "Image is available in Minikube's Docker daemon (imagePullPolicy: IfNotPresent)"
     echo ""
 
     # Summary

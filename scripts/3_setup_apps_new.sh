@@ -388,20 +388,7 @@ deploy_kafka_connect() {
 
     log_info "Deploying Kafka Connect with S3 sink connector..."
 
-    # Step 1: Enable Minikube registry addon
-    log_info "Ensuring Minikube registry addon is enabled..."
-    if ! minikube addons list | grep "registry" | grep -q "enabled"; then
-        if ! minikube addons enable registry >> "$LOG_FILE" 2>&1; then
-            log_error "Failed to enable registry addon"
-            exit 1
-        fi
-        log_info "✓ Registry addon enabled"
-        sleep 5  # Give registry time to start
-    else
-        log_info "✓ Registry addon already enabled"
-    fi
-
-    # Step 2: Create MinIO bucket first (connector needs it)
+    # Step 1: Create MinIO bucket first (connector needs it)
     log_info "Creating MinIO bucket for archival..."
     if command -v mc >/dev/null 2>&1 && mc alias list 2>/dev/null | grep -q "^s3"; then
         local BUCKET=$(get_yaml_value ".kafka_connect.s3_sink.bucket" "$CONFIG_FILE")
