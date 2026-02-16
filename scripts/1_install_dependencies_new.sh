@@ -48,7 +48,7 @@ ensure_yq_installed() {
     local YQ_VERSION="v4.44.1"
     local YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
 
-    if ! curl -L "$YQ_URL" -o "$HOME/.local/bin/yq" >> "$LOG_FILE" 2>&1; then
+    if ! curl -kL "$YQ_URL" -o "$HOME/.local/bin/yq" >> "$LOG_FILE" 2>&1; then
         log_error "Failed to download yq from $YQ_URL"
         log_error "Please install yq manually:"
         log_error "  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
@@ -267,7 +267,7 @@ install_docker() {
     sudo apt-get update >> "$LOG_FILE" 2>&1
     sudo apt-get install -y ca-certificates curl >> "$LOG_FILE" 2>&1
     sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo curl -kfsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
 
     # Add the repository to Apt sources
@@ -312,7 +312,7 @@ install_uv() {
 
     log_info "Installing UV package manager..."
 
-    curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh >> "$LOG_FILE" 2>&1
+    curl -kLsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh >> "$LOG_FILE" 2>&1
 
     # Add UV to PATH permanently
     if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"; then
@@ -350,7 +350,7 @@ install_minikube() {
     log_info "Installing Minikube..."
 
     # Download and install Minikube
-    curl -LO https://github.com/kubernetes/minikube/releases/download/$MINIKUBE_VERSION/minikube-linux-amd64 >> "$LOG_FILE" 2>&1
+    curl -kLO https://github.com/kubernetes/minikube/releases/download/$MINIKUBE_VERSION/minikube-linux-amd64 >> "$LOG_FILE" 2>&1
     sudo install minikube-linux-amd64 /usr/local/bin/minikube
     rm minikube-linux-amd64
 
@@ -388,7 +388,7 @@ install_helm() {
 
     log_info "Installing Helm..."
 
-    curl -LO https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz >> "$LOG_FILE" 2>&1
+    curl -kLO https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz >> "$LOG_FILE" 2>&1
     tar -xzf helm-$HELM_VERSION-linux-amd64.tar.gz >> "$LOG_FILE" 2>&1
     sudo mv linux-amd64/helm /usr/local/bin
     rm -rf helm-$HELM_VERSION-linux-amd64.tar.gz linux-amd64
@@ -415,7 +415,7 @@ install_kubectl() {
 
     log_info "Installing kubectl..."
 
-    curl -LO https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl >> "$LOG_FILE" 2>&1
+    curl -kLO https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl >> "$LOG_FILE" 2>&1
     sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
     rm kubectl
 
